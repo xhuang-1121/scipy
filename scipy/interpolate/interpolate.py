@@ -25,9 +25,7 @@ from ._bsplines import make_interp_spline, BSpline
 
 def prod(x):
     """Product of a list of numbers; ~40x faster vs np.prod for Python tuples"""
-    if len(x) == 0:
-        return 1
-    return functools.reduce(operator.mul, x)
+    return 1 if len(x) == 0 else functools.reduce(operator.mul, x)
 
 
 def lagrange(x, w):
@@ -200,11 +198,10 @@ class interp2d(object):
 
         rectangular_grid = (z.size == len(x) * len(y))
         if rectangular_grid:
-            if z.ndim == 2:
-                if z.shape != (len(y), len(x)):
-                    raise ValueError("When on a regular grid with x.size = m "
-                                     "and y.size = n, if z.ndim == 2, then z "
-                                     "must have shape (n, m)")
+            if z.ndim == 2 and z.shape != (len(y), len(x)):
+                raise ValueError("When on a regular grid with x.size = m "
+                                 "and y.size = n, if z.ndim == 2, then z "
+                                 "must have shape (n, m)")
             if not np.all(x[1:] >= x[:-1]):
                 j = np.argsort(x)
                 x = x[j]
@@ -314,7 +311,7 @@ def _check_broadcast_up_to(arr_from, shape_to, name):
     shape_from = arr_from.shape
     if len(shape_to) >= len(shape_from):
         for t, f in zip(shape_to[::-1], shape_from[::-1]):
-            if f != 1 and f != t:
+            if f not in [1, t]:
                 break
         else:  # all checks pass, do the upcasting that we need later
             if arr_from.size != 1 and arr_from.shape != shape_to:
@@ -604,10 +601,7 @@ class interp1d(_Interpolator1D):
         # broadcasting semantics.
         slope = (y_hi - y_lo) / (x_hi - x_lo)[:, None]
 
-        # 5. Calculate the actual value for each entry in x_new.
-        y_new = slope*(x_new - x_lo)[:, None] + y_lo
-
-        return y_new
+        return slope*(x_new - x_lo)[:, None] + y_lo
 
     def _call_nearest(self, x_new):
         """ Find nearest neighbor interpolated y_new = f(x_new)."""
@@ -621,10 +615,7 @@ class interp1d(_Interpolator1D):
         # 3. Clip x_new_indices so that they are within the range of x indices.
         x_new_indices = x_new_indices.clip(0, len(self.x)-1).astype(intp)
 
-        # 4. Calculate the actual value for each entry in x_new.
-        y_new = self._y[x_new_indices]
-
-        return y_new
+        return self._y[x_new_indices]
 
     def _call_previousnext(self, x_new):
         """Use previous/next neighbor of x_new, y_new = f(x_new)."""
@@ -636,10 +627,7 @@ class interp1d(_Interpolator1D):
         x_new_indices = x_new_indices.clip(1-self._ind,
                                            len(self.x)-self._ind).astype(intp)
 
-        # 3. Calculate the actual value for each entry in x_new.
-        y_new = self._y[x_new_indices+self._ind-1]
-
-        return y_new
+        return self._y[x_new_indices+self._ind-1]
 
     def _call_spline(self, x_new):
         return self._spline(x_new)
@@ -715,8 +703,7 @@ class _PPolyBase(object):
                              "2-dimensional.")
 
         if not (0 <= axis < self.c.ndim - 1):
-            raise ValueError("axis=%s must be between 0 and %s" %
-                             (axis, self.c.ndim-1))
+            raise ValueError(f"axis={axis} must be between 0 and {self.c.ndim - 1}")
 
         self.axis = axis
         if axis != 0:
@@ -1010,11 +997,7 @@ class PPoly(_PPolyBase):
             return self.antiderivative(-nu)
 
         # reduce order
-        if nu == 0:
-            c2 = self.c.copy()
-        else:
-            c2 = self.c[:-nu, :].copy()
-
+        c2 = self.c.copy() if nu == 0 else self.c[:-nu, :].copy()
         if c2.shape[0] == 0:
             # derivative of order 0 is zero
             c2 = np.zeros((1,) + c2.shape[1:], dtype=c2.dtype)
@@ -1072,11 +1055,7 @@ class PPoly(_PPolyBase):
         _ppoly.fix_continuity(c.reshape(c.shape[0], c.shape[1], -1),
                               self.x, nu - 1)
 
-        if self.extrapolate == 'periodic':
-            extrapolate = False
-        else:
-            extrapolate = self.extrapolate
-
+        extrapolate = False if self.extrapolate == 'periodic' else self.extrapolate
         # construct a compatible polynomial
         return self.construct_fast(c, self.x, extrapolate, self.axis)
 
@@ -1225,14 +1204,13 @@ class PPoly(_PPolyBase):
                               bool(extrapolate))
         if self.c.ndim == 2:
             return r[0]
-        else:
-            r2 = np.empty(prod(self.c.shape[2:]), dtype=object)
-            # this for-loop is equivalent to ``r2[...] = r``, but that's broken
-            # in NumPy 1.6.0
-            for ii, root in enumerate(r):
-                r2[ii] = root
+        r2 = np.empty(prod(self.c.shape[2:]), dtype=object)
+        # this for-loop is equivalent to ``r2[...] = r``, but that's broken
+        # in NumPy 1.6.0
+        for ii, root in enumerate(r):
+            r2[ii] = root
 
-            return r2.reshape(self.c.shape[2:])
+        return r2.reshape(self.c.shape[2:])
 
     def roots(self, discontinuity=True, extrapolate=None):
         """
@@ -1441,7 +1419,7 @@ class BPoly(_PPolyBase):
 
         if nu > 1:
             bp = self
-            for k in range(nu):
+            for _ in range(nu):
                 bp = bp.derivative()
             return bp
 
@@ -1521,11 +1499,7 @@ class BPoly(_PPolyBase):
         # breakpoint). Finally, use the fact that BPs form a partition of unity.
         c2[:,1:] += np.cumsum(c2[k, :], axis=0)[:-1]
 
-        if self.extrapolate == 'periodic':
-            extrapolate = False
-        else:
-            extrapolate = self.extrapolate
-
+        extrapolate = False if self.extrapolate == 'periodic' else self.extrapolate
         return self.construct_fast(c2, x, extrapolate, axis=self.axis)
 
     def integrate(self, a, b, extrapolate=None):
@@ -1555,12 +1529,11 @@ class BPoly(_PPolyBase):
         if extrapolate is None:
             extrapolate = self.extrapolate
 
-        # ib.extrapolate shouldn't be 'periodic', it is converted to
-        # False for 'periodic. in antiderivative() call.
         if extrapolate != 'periodic':
             ib.extrapolate = extrapolate
 
-        if extrapolate == 'periodic':
+            return ib(b) - ib(a)
+        else:
             # Split the integral into the part over period (can be several
             # of them) and the remaining part.
 
@@ -1583,14 +1556,12 @@ class BPoly(_PPolyBase):
 
             # If b <= xe then we need to integrate over [a, b], otherwise
             # over [a, xe] and from xs to what is remained.
-            if b <= xe:
-                res += ib(b) - ib(a)
-            else:
-                res += ib(xe) - ib(a) + ib(xs + left + a - xe) - ib(xs)
-
+            res += (
+                ib(b) - ib(a)
+                if b <= xe
+                else ib(xe) - ib(a) + ib(xs + left + a - xe) - ib(xs)
+            )
             return sign * res
-        else:
-            return ib(b) - ib(a)
 
     def extend(self, c, x, right=None):
         k = max(self.c.shape[0], c.shape[0])
@@ -1739,7 +1710,7 @@ class BPoly(_PPolyBase):
                                xi[i], len(y1), xi[i+1], len(y2), orders[i]))
                     raise ValueError(mesg)
 
-                if not (n1 <= len(y1) and n2 <= len(y2)):
+                if n1 > len(y1) or n2 > len(y2):
                     raise ValueError("`order` input incompatible with"
                                      " length y1 or y2.")
 
@@ -1825,15 +1796,15 @@ class BPoly(_PPolyBase):
 
         # compute coefficients of a polynomial degree na+nb-1
         # walk left-to-right
-        for q in range(0, na):
+        for q in range(na):
             c[q] = ya[q] / spec.poch(n - q, q) * (xb - xa)**q
-            for j in range(0, q):
+            for j in range(q):
                 c[q] -= (-1)**(j+q) * comb(q, j) * c[j]
 
         # now walk right-to-left
-        for q in range(0, nb):
+        for q in range(nb):
             c[-q-1] = yb[q] / spec.poch(n - q, q) * (-1)**q * (xb - xa)**q
-            for j in range(0, q):
+            for j in range(q):
                 c[-q-1] -= (-1)**(j+1) * comb(q, j+1) * c[-q+j]
 
         return c
@@ -2021,11 +1992,7 @@ class NdPPoly(object):
         ``[a, b]``.
 
         """
-        if extrapolate is None:
-            extrapolate = self.extrapolate
-        else:
-            extrapolate = bool(extrapolate)
-
+        extrapolate = self.extrapolate if extrapolate is None else bool(extrapolate)
         ndim = len(self.x)
 
         x = _ndim_coords_from_arrays(x)
@@ -2068,14 +2035,12 @@ class NdPPoly(object):
         ndim = len(self.x)
         axis = axis % ndim
 
-        # reduce order
         if nu == 0:
             # noop
             return
-        else:
-            sl = [slice(None)]*ndim
-            sl[axis] = slice(None, -nu, None)
-            c2 = self.c[tuple(sl)]
+        sl = [slice(None)]*ndim
+        sl[axis] = slice(None, -nu, None)
+        c2 = self.c[tuple(sl)]
 
         if c2.shape[axis] == 0:
             # derivative of order 0 is zero
@@ -2104,7 +2069,7 @@ class NdPPoly(object):
 
         perm = list(range(ndim))
         perm[0], perm[axis] = perm[axis], perm[0]
-        perm = perm + list(range(ndim, self.c.ndim))
+        perm += list(range(ndim, self.c.ndim))
 
         c = self.c.transpose(perm)
 
@@ -2229,11 +2194,7 @@ class NdPPoly(object):
             otherwise, an NdPPoly object.
 
         """
-        if extrapolate is None:
-            extrapolate = self.extrapolate
-        else:
-            extrapolate = bool(extrapolate)
-
+        extrapolate = self.extrapolate if extrapolate is None else bool(extrapolate)
         ndim = len(self.x)
         axis = int(axis) % ndim
 
@@ -2251,13 +2212,11 @@ class NdPPoly(object):
                                  extrapolate=extrapolate)
         out = p.integrate(a, b, extrapolate=extrapolate)
 
-        # Construct result
         if ndim == 1:
             return out.reshape(c.shape[2:])
-        else:
-            c = out.reshape(c.shape[2:])
-            x = self.x[:axis] + self.x[axis+1:]
-            return self.construct_fast(c, x, extrapolate=extrapolate)
+        c = out.reshape(c.shape[2:])
+        x = self.x[:axis] + self.x[axis+1:]
+        return self.construct_fast(c, x, extrapolate=extrapolate)
 
     def integrate(self, ranges, extrapolate=None):
         """
@@ -2282,11 +2241,7 @@ class NdPPoly(object):
 
         ndim = len(self.x)
 
-        if extrapolate is None:
-            extrapolate = self.extrapolate
-        else:
-            extrapolate = bool(extrapolate)
-
+        extrapolate = self.extrapolate if extrapolate is None else bool(extrapolate)
         if not hasattr(ranges, '__len__') or len(ranges) != ndim:
             raise ValueError("Range not a sequence of correct length")
 
@@ -2409,7 +2364,7 @@ class RegularGridInterpolator(object):
     def __init__(self, points, values, method="linear", bounds_error=True,
                  fill_value=np.nan):
         if method not in ["linear", "nearest"]:
-            raise ValueError("Method '%s' is not defined" % method)
+            raise ValueError(f"Method '{method}' is not defined")
         self.method = method
         self.bounds_error = bounds_error
 
@@ -2421,9 +2376,12 @@ class RegularGridInterpolator(object):
             raise ValueError("There are %d point arrays, but values has %d "
                              "dimensions" % (len(points), values.ndim))
 
-        if hasattr(values, 'dtype') and hasattr(values, 'astype'):
-            if not np.issubdtype(values.dtype, np.inexact):
-                values = values.astype(float)
+        if (
+            hasattr(values, 'dtype')
+            and hasattr(values, 'astype')
+            and not np.issubdtype(values.dtype, np.inexact)
+        ):
+            values = values.astype(float)
 
         self.fill_value = fill_value
         if fill_value is not None:
@@ -2438,13 +2396,13 @@ class RegularGridInterpolator(object):
             if not np.all(np.diff(p) > 0.):
                 raise ValueError("The points in dimension %d must be strictly "
                                  "ascending" % i)
-            if not np.asarray(p).ndim == 1:
+            if np.asarray(p).ndim != 1:
                 raise ValueError("The points in dimension %d must be "
                                  "1-dimensional" % i)
-            if not values.shape[i] == len(p):
+            if values.shape[i] != len(p):
                 raise ValueError("There are %d points and %d values in "
                                  "dimension %d" % (len(p), values.shape[i], i))
-        self.grid = tuple([np.asarray(p) for p in points])
+        self.grid = tuple(np.asarray(p) for p in points)
         self.values = values
 
     def __call__(self, xi, method=None):
@@ -2463,7 +2421,7 @@ class RegularGridInterpolator(object):
         """
         method = self.method if method is None else method
         if method not in ["linear", "nearest"]:
-            raise ValueError("Method '%s' is not defined" % method)
+            raise ValueError(f"Method '{method}' is not defined")
 
         ndim = len(self.grid)
         xi = _ndim_coords_from_arrays(xi, ndim=ndim)
@@ -2622,13 +2580,13 @@ def interpn(points, values, xi, method="linear", bounds_error=True,
         if not np.all(np.diff(p) > 0.):
             raise ValueError("The points in dimension %d must be strictly "
                              "ascending" % i)
-        if not np.asarray(p).ndim == 1:
+        if np.asarray(p).ndim != 1:
             raise ValueError("The points in dimension %d must be "
                              "1-dimensional" % i)
-        if not values.shape[i] == len(p):
+        if values.shape[i] != len(p):
             raise ValueError("There are %d points and %d values in "
                              "dimension %d" % (len(p), values.shape[i], i))
-    grid = tuple([np.asarray(p) for p in points])
+    grid = tuple(np.asarray(p) for p in points)
 
     # sanity check requested xi
     xi = _ndim_coords_from_arrays(xi, ndim=len(grid))
@@ -2685,11 +2643,7 @@ class _ppform(PPoly):
         warnings.warn("_ppform is deprecated -- use PPoly instead",
                       category=DeprecationWarning)
 
-        if sort:
-            breaks = np.sort(breaks)
-        else:
-            breaks = np.asarray(breaks)
-
+        breaks = np.sort(breaks) if sort else np.asarray(breaks)
         PPoly.__init__(self, coeffs, breaks)
 
         self.coeffs = self.c

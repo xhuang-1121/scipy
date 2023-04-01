@@ -334,10 +334,7 @@ class Xdist(Benchmark):
         self.points = np.random.random_sample((num_points, 3))
         # use an equal weight vector to satisfy those metrics
         # that require weights
-        if metric == 'wminkowski':
-            self.w = np.ones(3)
-        else:
-            self.w = None
+        self.w = np.ones(3) if metric == 'wminkowski' else None
 
     def time_cdist(self, num_points, metric):
         """Time scipy.spatial.distance.cdist over a range of input data

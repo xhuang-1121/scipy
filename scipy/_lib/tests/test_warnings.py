@@ -38,10 +38,11 @@ class FindFuncs(ast.NodeVisitor):
         p.visit(node.func)
         ast.NodeVisitor.generic_visit(self, node)
 
-        if p.ls[-1] == 'simplefilter' or p.ls[-1] == 'filterwarnings':
-            if node.args[0].s == "ignore":
-                self.bad_filters.append(
-                    "{}:{}".format(self.__filename, node.lineno))
+        if (
+            p.ls[-1] in ['simplefilter', 'filterwarnings']
+            and node.args[0].s == "ignore"
+        ):
+            self.bad_filters.append(f"{self.__filename}:{node.lineno}")
 
         if p.ls[-1] == 'warn' and (
                 len(p.ls) == 1 or p.ls[-2] == 'warnings'):
@@ -55,8 +56,7 @@ class FindFuncs(ast.NodeVisitor):
                 return
             args = {kw.arg for kw in node.keywords}
             if "stacklevel" not in args:
-                self.bad_stacklevels.append(
-                    "{}:{}".format(self.__filename, node.lineno))
+                self.bad_stacklevels.append(f"{self.__filename}:{node.lineno}")
 
 
 @pytest.fixture(scope="session")
@@ -87,12 +87,12 @@ def test_warning_calls_filters(warning_calls):
     # There is still one simplefilter occurrence in optimize.py that could be removed.
     bad_filters = [item for item in bad_filters
                    if 'optimize.py' not in item]
-    # The filterwarnings calls in sparse are needed.
-    bad_filters = [item for item in bad_filters
-                   if os.path.join('sparse', '__init__.py') not in item
-                   and os.path.join('sparse', 'sputils.py') not in item]
-
-    if bad_filters:
+    if bad_filters := [
+        item
+        for item in bad_filters
+        if os.path.join('sparse', '__init__.py') not in item
+        and os.path.join('sparse', 'sputils.py') not in item
+    ]:
         raise AssertionError(
             "warning ignore filter should not be used, instead, use\n"
             "numpy.testing.suppress_warnings (in tests only);\n"

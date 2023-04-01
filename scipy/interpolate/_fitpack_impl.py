@@ -225,28 +225,19 @@ def splprep(x, w=None, u=None, ub=None, ue=None, k=3, task=0, s=None, t=None,
                 x[i][-1] = x[i][0]
     if not 0 < idim < 11:
         raise TypeError('0 < idim < 11 must hold')
-    if w is None:
-        w = ones(m, float)
-    else:
-        w = atleast_1d(w)
+    w = ones(m, float) if w is None else atleast_1d(w)
     ipar = (u is not None)
     if ipar:
         _parcur_cache['u'] = u
-        if ub is None:
-            _parcur_cache['ub'] = u[0]
-        else:
-            _parcur_cache['ub'] = ub
-        if ue is None:
-            _parcur_cache['ue'] = u[-1]
-        else:
-            _parcur_cache['ue'] = ue
+        _parcur_cache['ub'] = u[0] if ub is None else ub
+        _parcur_cache['ue'] = u[-1] if ue is None else ue
     else:
         _parcur_cache['u'] = zeros(m, float)
     if not (1 <= k <= 5):
         raise TypeError('1 <= k= %d <=5 must hold' % k)
     if not (-1 <= task <= 1):
         raise TypeError('task must be -1, 0 or 1')
-    if (not len(w) == m) or (ipar == 1 and (not len(u) == m)):
+    if len(w) != m or ipar == 1 and len(u) != m:
         raise TypeError('Mismatch of input dimensions')
     if s is None:
         s = m - sqrt(2*m)
@@ -263,10 +254,7 @@ def splprep(x, w=None, u=None, ub=None, ue=None, k=3, task=0, s=None, t=None,
         nest = m + 2*k
 
     if (task >= 0 and s == 0) or (nest < 0):
-        if per:
-            nest = m + 2*k
-        else:
-            nest = m + k + 1
+        nest = m + 2*k if per else m + k + 1
     nest = max(nest, 2*k + 3)
     u = _parcur_cache['u']
     ub = _parcur_cache['ub']
@@ -300,13 +288,12 @@ def splprep(x, w=None, u=None, ub=None, ue=None, k=3, task=0, s=None, t=None,
                 raise _iermess[ier][1](_iermess[ier][0])
             except KeyError:
                 raise _iermess['unknown'][1](_iermess['unknown'][0])
-    if full_output:
-        try:
-            return tcku, fp, ier, _iermess[ier][0]
-        except KeyError:
-            return tcku, fp, ier, _iermess['unknown'][0]
-    else:
+    if not full_output:
         return tcku
+    try:
+        return tcku, fp, ier, _iermess[ier][0]
+    except KeyError:
+        return tcku, fp, ier, _iermess['unknown'][0]
 
 
 _curfit_cache = {'t': array([], float), 'wrk': array([], float),
@@ -450,9 +437,9 @@ def splrep(x, y, w=None, xb=None, xe=None, k=3, task=0, s=None, t=None,
         w = atleast_1d(w)
         if s is None:
             s = m - sqrt(2*m)
-    if not len(w) == m:
+    if len(w) != m:
         raise TypeError('len(w)=%d is not equal to m=%d' % (len(w), m))
-    if (m != len(y)) or (m != len(w)):
+    if m != len(y):
         raise TypeError('Lengths of the first three arguments (x,y,w) must '
                         'be equal')
     if not (1 <= k <= 5):
@@ -476,10 +463,7 @@ def splrep(x, y, w=None, xb=None, xe=None, k=3, task=0, s=None, t=None,
         _curfit_cache['t'][k+1:-k-1] = t
         nest = len(_curfit_cache['t'])
     elif task == 0:
-        if per:
-            nest = max(m + 2*k, 2*k + 3)
-        else:
-            nest = max(m + k + 1, 2*k + 3)
+        nest = max(m + 2*k, 2*k + 3) if per else max(m + k + 1, 2*k + 3)
         t = empty((nest,), float)
         _curfit_cache['t'] = t
     if task <= 0:
@@ -495,11 +479,11 @@ def splrep(x, y, w=None, xb=None, xe=None, k=3, task=0, s=None, t=None,
     except KeyError:
         raise TypeError("must call with task=1 only after"
                         " call with task=0,-1")
-    if not per:
-        n, c, fp, ier = dfitpack.curfit(task, x, y, w, t, wrk, iwrk,
-                                        xb, xe, k, s)
-    else:
-        n, c, fp, ier = dfitpack.percur(task, x, y, w, t, wrk, iwrk, k, s)
+    n, c, fp, ier = (
+        dfitpack.percur(task, x, y, w, t, wrk, iwrk, k, s)
+        if per
+        else dfitpack.curfit(task, x, y, w, t, wrk, iwrk, xb, xe, k, s)
+    )
     tck = (t[:n], c[:n], k)
     if ier <= 0 and not quiet:
         _mess = (_iermess[ier][0] + "\tk=%d n=%d m=%d fp=%f s=%f" %
@@ -513,13 +497,12 @@ def splrep(x, y, w=None, xb=None, xe=None, k=3, task=0, s=None, t=None,
                 raise _iermess[ier][1](_iermess[ier][0])
             except KeyError:
                 raise _iermess['unknown'][1](_iermess['unknown'][0])
-    if full_output:
-        try:
-            return tck, fp, ier, _iermess[ier][0]
-        except KeyError:
-            return tck, fp, ier, _iermess['unknown'][0]
-    else:
+    if not full_output:
         return tck
+    try:
+        return tck, fp, ier, _iermess[ier][0]
+    except KeyError:
+        return tck, fp, ier, _iermess['unknown'][0]
 
 
 def splev(x, tck, der=0, ext=0):
@@ -584,25 +567,24 @@ def splev(x, tck, der=0, ext=0):
     if parametric:
         return list(map(lambda c, x=x, t=t, k=k, der=der:
                         splev(x, [t, c, k], der, ext), c))
-    else:
-        if not (0 <= der <= k):
-            raise ValueError("0<=der=%d<=k=%d must hold" % (der, k))
-        if ext not in (0, 1, 2, 3):
-            raise ValueError("ext = %s not in (0, 1, 2, 3) " % ext)
+    if not (0 <= der <= k):
+        raise ValueError("0<=der=%d<=k=%d must hold" % (der, k))
+    if ext not in (0, 1, 2, 3):
+        raise ValueError(f"ext = {ext} not in (0, 1, 2, 3) ")
 
-        x = asarray(x)
-        shape = x.shape
-        x = atleast_1d(x).ravel()
-        y, ier = _fitpack._spl_(x, der, t, c, k, ext)
+    x = asarray(x)
+    shape = x.shape
+    x = atleast_1d(x).ravel()
+    y, ier = _fitpack._spl_(x, der, t, c, k, ext)
 
-        if ier == 10:
-            raise ValueError("Invalid input data")
-        if ier == 1:
-            raise ValueError("Found x value not in the domain")
-        if ier:
-            raise TypeError("An error occurred")
+    if ier == 10:
+        raise ValueError("Invalid input data")
+    if ier == 1:
+        raise ValueError("Found x value not in the domain")
+    if ier:
+        raise TypeError("An error occurred")
 
-        return y.reshape(shape)
+    return y.reshape(shape)
 
 
 def splint(a, b, tck, full_output=0):
@@ -658,12 +640,8 @@ def splint(a, b, tck, full_output=0):
     if parametric:
         return list(map(lambda c, a=a, b=b, t=t, k=k:
                         splint(a, b, [t, c, k]), c))
-    else:
-        aint, wrk = _fitpack._splint(t, c, k, a, b)
-        if full_output:
-            return aint, wrk
-        else:
-            return aint
+    aint, wrk = _fitpack._splint(t, c, k, a, b)
+    return (aint, wrk) if full_output else aint
 
 
 def sproot(tck, mest=10):
@@ -716,19 +694,18 @@ def sproot(tck, mest=10):
     if parametric:
         return list(map(lambda c, t=t, k=k, mest=mest:
                         sproot([t, c, k], mest), c))
-    else:
-        if len(t) < 8:
-            raise TypeError("The number of knots %d>=8" % len(t))
-        z, ier = _fitpack._sproot(t, c, k, mest)
-        if ier == 10:
-            raise TypeError("Invalid input data. "
-                            "t1<=..<=t4<t5<..<tn-3<=..<=tn must hold.")
-        if ier == 0:
-            return z
-        if ier == 1:
-            warnings.warn(RuntimeWarning("The number of zeros exceeds mest"))
-            return z
-        raise TypeError("Unknown error")
+    if len(t) < 8:
+        raise TypeError("The number of knots %d>=8" % len(t))
+    z, ier = _fitpack._sproot(t, c, k, mest)
+    if ier == 10:
+        raise TypeError("Invalid input data. "
+                        "t1<=..<=t4<t5<..<tn-3<=..<=tn must hold.")
+    if ier == 0:
+        return z
+    if ier == 1:
+        warnings.warn(RuntimeWarning("The number of zeros exceeds mest"))
+        return z
+    raise TypeError("Unknown error")
 
 
 def spalde(x, tck):
@@ -777,16 +754,15 @@ def spalde(x, tck):
     if parametric:
         return list(map(lambda c, x=x, t=t, k=k:
                         spalde(x, [t, c, k]), c))
-    else:
-        x = atleast_1d(x)
-        if len(x) > 1:
-            return list(map(lambda x, tck=tck: spalde(x, tck), x))
-        d, ier = _fitpack._spalde(t, c, k, x[0])
-        if ier == 0:
-            return d
-        if ier == 10:
-            raise TypeError("Invalid input data. t(k)<=x<=t(n-k+1) must hold.")
-        raise TypeError("Unknown error")
+    x = atleast_1d(x)
+    if len(x) > 1:
+        return list(map(lambda x, tck=tck: spalde(x, tck), x))
+    d, ier = _fitpack._spalde(t, c, k, x[0])
+    if ier == 0:
+        return d
+    if ier == 10:
+        raise TypeError("Invalid input data. t(k)<=x<=t(n-k+1) must hold.")
+    raise TypeError("Unknown error")
 
 # def _curfit(x,y,w=None,xb=None,xe=None,k=3,task=0,s=None,t=None,
 #           full_output=0,nest=None,per=0,quiet=1):
@@ -889,11 +865,8 @@ def bisplrep(x, y, z, w=None, xb=None, xe=None, yb=None, ye=None,
     m = len(x)
     if not (m == len(y) == len(z)):
         raise TypeError('len(x)==len(y)==len(z) must hold.')
-    if w is None:
-        w = ones(m, float)
-    else:
-        w = atleast_1d(w)
-    if not len(w) == m:
+    w = ones(m, float) if w is None else atleast_1d(w)
+    if len(w) != m:
         raise TypeError('len(w)=%d is not equal to m=%d' % (len(w), m))
     if xb is None:
         xb = x.min()
@@ -921,7 +894,7 @@ def bisplrep(x, y, z, w=None, xb=None, xe=None, yb=None, ye=None,
         raise TypeError('There must be at least 2*kx+2 knots_x for task=-1')
     if task == -1 and ny < 2*ky+2:
         raise TypeError('There must be at least 2*ky+2 knots_x for task=-1')
-    if not ((1 <= kx <= 5) and (1 <= ky <= 5)):
+    if not 1 <= kx <= 5 or not 1 <= ky <= 5:
         raise TypeError('Given degree of the spline (kx,ky=%d,%d) is not '
                         'supported. (1<=k<=5)' % (kx, ky))
     if m < (kx + 1)*(ky + 1):
@@ -977,13 +950,12 @@ def bisplrep(x, y, z, w=None, xb=None, xe=None, yb=None, ye=None,
                 raise _iermess2[ierm][1](_iermess2[ierm][0])
             except KeyError:
                 raise _iermess2['unknown'][1](_iermess2['unknown'][0])
-    if full_output:
-        try:
-            return tck, fp, ier, _iermess2[ierm][0]
-        except KeyError:
-            return tck, fp, ier, _iermess2['unknown'][0]
-    else:
+    if not full_output:
         return tck
+    try:
+        return tck, fp, ier, _iermess2[ierm][0]
+    except KeyError:
+        return tck, fp, ier, _iermess2['unknown'][0]
 
 
 def bisplev(x, y, tck, dx=0, dy=0):
@@ -1050,9 +1022,7 @@ def bisplev(x, y, tck, dx=0, dy=0):
     z.shape = len(x), len(y)
     if len(z) > 1:
         return z
-    if len(z[0]) > 1:
-        return z[0]
-    return z[0][0]
+    return z[0] if len(z[0]) > 1 else z[0][0]
 
 
 def dblint(xa, xb, ya, yb, tck):
@@ -1205,7 +1175,7 @@ def splder(tck, n=1):
 
     with np.errstate(invalid='raise', divide='raise'):
         try:
-            for j in range(n):
+            for _ in range(n):
                 # See e.g. Schumaker, Spline Functions: Basic Theory, Chapter 5
 
                 # Compute the denominator in the differentiation formula.
@@ -1291,7 +1261,7 @@ def splantider(tck, n=1):
     # Extra axes for the trailing dims of the `c` array:
     sh = (slice(None),) + (None,)*len(c.shape[1:])
 
-    for j in range(n):
+    for _ in range(n):
         # This is the inverse set of operations to splder.
 
         # Compute the multiplier in the antiderivative formula.

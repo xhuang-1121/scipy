@@ -71,7 +71,7 @@ master_doc = 'index'
 
 # General substitutions.
 project = 'SciPy'
-copyright = '2008-%s, The SciPy community' % date.today().year
+copyright = f'2008-{date.today().year}, The SciPy community'
 
 # The default replacements for |version| and |release|, also used in various
 # other places throughout the built documents.
@@ -79,7 +79,7 @@ import scipy
 version = re.sub(r'\.dev-.*$', r'.dev', scipy.__version__)
 release = scipy.__version__
 
-print("%s (VERSION %s)" % (project, version))
+print(f"{project} (VERSION {version})")
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -129,8 +129,9 @@ for key in (
         "OpenSSL\.rand is deprecated",  # OpenSSL package in linkcheck
         "Using or importing the ABCs from",  # 3.5 importlib._bootstrap
         ):
-    warnings.filterwarnings(  # deal with other modules having bad imports
-        'ignore', message=".*" + key, category=DeprecationWarning)
+    warnings.filterwarnings(
+        'ignore', message=f".*{key}", category=DeprecationWarning
+    )
 warnings.filterwarnings(  # matplotlib<->pyparsing issue
     'ignore', message="Exception creating Regex for oneOf.*",
     category=SyntaxWarning)
@@ -150,8 +151,7 @@ for key in (
         # tutorial/stats.rst (twice):
         'underflow encountered in exp',
         ):
-    warnings.filterwarnings(
-        'once', message='.*' + key)
+    warnings.filterwarnings('once', message=f'.*{key}')
 
 # -----------------------------------------------------------------------------
 # HTML output
@@ -182,16 +182,14 @@ if os.path.isdir(themedir):
         html_logo = '_static/scipyshiny_small.png'
         html_sidebars = {'index': ['indexsidebar.html', 'searchbox.html']}
 else:
-    # Build without scipy.org sphinx theme present
     if 'scipyorg' in tags:
         raise RuntimeError("Get the scipy-sphinx-theme first, "
                            "via git submodule init & update")
-    else:
-        html_style = 'scipy_fallback.css'
-        html_logo = '_static/scipyshiny_small.png'
-        html_sidebars = {'index': ['indexsidebar.html', 'searchbox.html']}
+    html_style = 'scipy_fallback.css'
+    html_logo = '_static/scipyshiny_small.png'
+    html_sidebars = {'index': ['indexsidebar.html', 'searchbox.html']}
 
-html_title = "%s v%s Reference Guide" % (project, version)
+html_title = f"{project} v{version} Reference Guide"
 html_static_path = ['_static']
 html_last_updated_fmt = '%b %d, %Y'
 
@@ -464,24 +462,16 @@ def linkcode_resolve(domain, info):
     except Exception:
         lineno = None
 
-    if lineno:
-        linespec = "#L%d-L%d" % (lineno, lineno + len(source) - 1)
-    else:
-        linespec = ""
-
+    linespec = "#L%d-L%d" % (lineno, lineno + len(source) - 1) if lineno else ""
     startdir = os.path.abspath(os.path.join(dirname(scipy.__file__), '..'))
     fn = relpath(fn, start=startdir).replace(os.path.sep, '/')
 
     if fn.startswith('scipy/'):
-        m = re.match(r'^.*dev0\+([a-f0-9]+)$', scipy.__version__)
-        if m:
-            return "https://github.com/scipy/scipy/blob/%s/%s%s" % (
-                m.group(1), fn, linespec)
+        if m := re.match(r'^.*dev0\+([a-f0-9]+)$', scipy.__version__):
+            return f"https://github.com/scipy/scipy/blob/{m[1]}/{fn}{linespec}"
         elif 'dev' in scipy.__version__:
-            return "https://github.com/scipy/scipy/blob/master/%s%s" % (
-                fn, linespec)
+            return f"https://github.com/scipy/scipy/blob/master/{fn}{linespec}"
         else:
-            return "https://github.com/scipy/scipy/blob/v%s/%s%s" % (
-                scipy.__version__, fn, linespec)
+            return f"https://github.com/scipy/scipy/blob/v{scipy.__version__}/{fn}{linespec}"
     else:
         return None

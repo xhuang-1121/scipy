@@ -10,11 +10,7 @@ __all__ = ['needs_g77_abi_wrapper', 'get_g77_abi_wrappers']
 def uses_mkl(info):
     r_mkl = re.compile("mkl")
     libraries = info.get('libraries', '')
-    for library in libraries:
-        if r_mkl.search(library):
-            return True
-
-    return False
+    return any(r_mkl.search(library) for library in libraries)
 
 
 def needs_g77_abi_wrapper(info):

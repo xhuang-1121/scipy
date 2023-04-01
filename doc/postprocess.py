@@ -19,7 +19,7 @@ def main():
     mode = args.pop(0)
 
     if mode not in ('html', 'tex'):
-        p.error('unknown mode %s' % mode)
+        p.error(f'unknown mode {mode}')
 
     for fn in args:
         # default encoding under Py3 is locale dependent (might even be ASCII),

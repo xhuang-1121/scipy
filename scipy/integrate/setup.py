@@ -52,7 +52,7 @@ def configuration(parent_package='',top_path=None):
 
     # odepack/lsoda-odeint
     odepack_opts = lapack_opt.copy()
-    odepack_opts.update(numpy_nodepr_api)
+    odepack_opts |= numpy_nodepr_api
     config.add_extension('_odepack',
                          sources=['_odepackmodule.c'],
                          libraries=['lsoda', 'mach'] + lapack_libs,

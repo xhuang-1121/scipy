@@ -18,9 +18,7 @@ class _ScipyBackend:
     def __ua_function__(method, args, kwargs):
         fn = getattr(_pocketfft, method.__name__, None)
 
-        if fn is None:
-            return NotImplemented
-        return fn(*args, **kwargs)
+        return NotImplemented if fn is None else fn(*args, **kwargs)
 
 
 _named_backends = {
@@ -34,7 +32,7 @@ def _backend_from_arg(backend):
         try:
             backend = _named_backends[backend]
         except KeyError:
-            raise ValueError('Unknown backend {}'.format(backend))
+            raise ValueError(f'Unknown backend {backend}')
 
     if backend.__ua_domain__ != 'numpy.scipy.fft':
         raise ValueError('Backend does not implement "numpy.scipy.fft"')

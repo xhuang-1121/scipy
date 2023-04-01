@@ -43,7 +43,7 @@ class PytestTester(object):
             pytest_args += ["-" + "v"*(int(verbose)-1)]
 
         if coverage:
-            pytest_args += ["--cov=" + module_path]
+            pytest_args += [f"--cov={module_path}"]
 
         if label == "fast":
             pytest_args += ["-m", "not slow"]
@@ -111,10 +111,10 @@ def _parse_size(size_str):
     m = re.match(r'^\s*(\d+)\s*({0})\s*$'.format('|'.join(suffixes.keys())),
                  size_str,
                  re.I)
-    if not m or m.group(2) not in suffixes:
+    if not m or m[2] not in suffixes:
         raise ValueError("Invalid size string")
 
-    return float(m.group(1)) * suffixes[m.group(2)]
+    return float(m[1]) * suffixes[m[2]]
 
 
 def _get_mem_available():
@@ -134,10 +134,5 @@ def _get_mem_available():
                 p = line.split()
                 info[p[0].strip(':').lower()] = float(p[1]) * 1e3
 
-        if 'memavailable' in info:
-            # Linux >= 3.14
-            return info['memavailable']
-        else:
-            return info['memfree'] + info['cached']
-
+        return info.get('memavailable', info['memfree'] + info['cached'])
     return None

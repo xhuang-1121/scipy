@@ -14,17 +14,12 @@ __all__ = ["BSpline", "make_interp_spline", "make_lsq_spline"]
 # copy-paste from interpolate.py
 def prod(x):
     """Product of a list of numbers; ~40x faster vs np.prod for Python tuples"""
-    if len(x) == 0:
-        return 1
-    return functools.reduce(operator.mul, x)
+    return 1 if len(x) == 0 else functools.reduce(operator.mul, x)
 
 
 def _get_dtype(dtype):
     """Return np.complex128 for complex dtypes, np.float64 otherwise."""
-    if np.issubdtype(dtype, np.complexfloating):
-        return np.complex_
-    else:
-        return np.float_
+    return np.complex_ if np.issubdtype(dtype, np.complexfloating) else np.float_
 
 
 def _as_float_array(x, check_finite=False):
@@ -190,7 +185,7 @@ class BSpline(object):
         n = self.t.shape[0] - self.k - 1
 
         if not (0 <= axis < self.c.ndim):
-            raise ValueError("%s must be between 0 and %s" % (axis, c.ndim))
+            raise ValueError(f"{axis} must be between 0 and {c.ndim}")
 
         self.axis = axis
         if axis != 0:
@@ -426,11 +421,7 @@ class BSpline(object):
             c = np.r_[c, np.zeros((ct,) + c.shape[1:])]
         tck = _fitpack_impl.splantider((self.t, c, self.k), nu)
 
-        if self.extrapolate == 'periodic':
-            extrapolate = False
-        else:
-            extrapolate = self.extrapolate
-
+        extrapolate = False if self.extrapolate == 'periodic' else self.extrapolate
         return self.construct_fast(*tck, extrapolate=extrapolate,
                                    axis=self.axis)
 
@@ -577,12 +568,11 @@ def _not_a_knot(x, k):
     cf de Boor, XIII(12)."""
     x = np.asarray(x)
     if k % 2 != 1:
-        raise ValueError("Odd degree for now only. Got %s." % k)
+        raise ValueError(f"Odd degree for now only. Got {k}.")
 
     m = (k - 1) // 2
     t = x[m+1:-m-1]
-    t = np.r_[(x[0],)*(k+1), t, (x[-1],)*(k+1)]
-    return t
+    return np.r_[(x[0],)*(k+1), t, (x[-1],)*(k+1)]
 
 
 def _augknt(x, k):
@@ -597,7 +587,7 @@ def _convert_string_aliases(deriv, target_shape):
         elif deriv == "natural":
             deriv = [(2, np.zeros(target_shape))]
         else:
-            raise ValueError("Unknown boundary condition : %s" % deriv)
+            raise ValueError(f"Unknown boundary condition : {deriv}")
     return deriv
 
 
@@ -737,12 +727,12 @@ def make_interp_spline(x, y, k=3, t=None, bc_type=None, axis=0,
         try:
             deriv_l, deriv_r = bc_type
         except TypeError:
-            raise ValueError("Unknown boundary condition: %s" % bc_type)
+            raise ValueError(f"Unknown boundary condition: {bc_type}")
 
     y = np.asarray(y)
 
     if not -y.ndim <= axis < y.ndim:
-        raise ValueError("axis {} is out of bounds".format(axis))
+        raise ValueError(f"axis {axis} is out of bounds")
     if axis < 0:
         axis += y.ndim
 
@@ -760,7 +750,7 @@ def make_interp_spline(x, y, k=3, t=None, bc_type=None, axis=0,
 
     # special-case k=1 (e.g., Lyche and Morken, Eq.(2.16))
     if k == 1 and t is None:
-        if not (deriv_l is None and deriv_r is None):
+        if deriv_l is not None or deriv_r is not None:
             raise ValueError("Too much info for k=1: bc_type can only be None.")
         x = _as_float_array(x, check_finite)
         t = np.r_[x[0], x, x[-1]]
@@ -804,7 +794,7 @@ def make_interp_spline(x, y, k=3, t=None, bc_type=None, axis=0,
         raise ValueError('Got %d knots, need at least %d.' %
                          (t.size, x.size + k + 1))
     if (x[0] < t[k]) or (x[-1] > t[-k]):
-        raise ValueError('Out of bounds w/ x = %s.' % x)
+        raise ValueError(f'Out of bounds w/ x = {x}.')
 
     # Here : deriv_l, r = [(nu, value), ...]
     deriv_l = _convert_string_aliases(deriv_l, y.shape[1:])
@@ -813,15 +803,15 @@ def make_interp_spline(x, y, k=3, t=None, bc_type=None, axis=0,
 
     deriv_r = _convert_string_aliases(deriv_r, y.shape[1:])
     deriv_r_ords, deriv_r_vals = _process_deriv_spec(deriv_r)
-    nright = deriv_r_ords.shape[0]
-
     # have `n` conditions for `nt` coefficients; need nt-n derivatives
     n = x.size
     nt = t.size - k - 1
 
+    nright = deriv_r_ords.shape[0]
     if nt - n != nleft + nright:
-        raise ValueError("The number of derivatives at boundaries does not "
-                         "match: expected %s, got %s+%s" % (nt-n, nleft, nright))
+        raise ValueError(
+            f"The number of derivatives at boundaries does not match: expected {nt - n}, got {nleft}+{nright}"
+        )
 
     # set up the LHS: the collocation matrix + derivatives at boundaries
     kl = ku = k
@@ -966,14 +956,11 @@ def make_lsq_spline(x, y, t, k=3, w=None, axis=0, check_finite=True):
     x = _as_float_array(x, check_finite)
     y = _as_float_array(y, check_finite)
     t = _as_float_array(t, check_finite)
-    if w is not None:
-        w = _as_float_array(w, check_finite)
-    else:
-        w = np.ones_like(x)
+    w = _as_float_array(w, check_finite) if w is not None else np.ones_like(x)
     k = operator.index(k)
 
     if not -y.ndim <= axis < y.ndim:
-        raise ValueError("axis {} is out of bounds".format(axis))
+        raise ValueError(f"axis {axis} is out of bounds")
     if axis < 0:
         axis += y.ndim
 
@@ -990,7 +977,7 @@ def make_lsq_spline(x, y, t, k=3, w=None, axis=0, check_finite=True):
     if x.size != y.shape[0]:
         raise ValueError('x & y are incompatible.')
     if k > 0 and np.any((x < t[k]) | (x > t[-k])):
-        raise ValueError('Out of bounds w/ x = %s.' % x)
+        raise ValueError(f'Out of bounds w/ x = {x}.')
     if x.size != w.size:
         raise ValueError('Incompatible weights.')
 

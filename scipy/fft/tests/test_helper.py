@@ -35,8 +35,7 @@ def _assert_n_smooth(x, n):
                 break
             x = q
 
-    assert x == 1, \
-           'x={} is not {}-smooth, remainder={}'.format(x_orig, n, x)
+    assert x == 1, f'x={x_orig} is not {n}-smooth, remainder={x}'
 
 
 class TestNextFastLen(object):
@@ -45,8 +44,7 @@ class TestNextFastLen(object):
         np.random.seed(1234)
 
         def nums():
-            for j in range(1, 1000):
-                yield j
+            yield from range(1, 1000)
             yield 2**5 * 3**5 * 4**5 + 1
 
         for n in nums():

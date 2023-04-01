@@ -115,7 +115,7 @@ def get_version_info():
         GIT_REVISION = "Unknown"
 
     if not ISRELEASED:
-        FULLVERSION += '.dev0+' + GIT_REVISION[:7]
+        FULLVERSION += f'.dev0+{GIT_REVISION[:7]}'
 
     return FULLVERSION, GIT_REVISION
 
@@ -171,7 +171,7 @@ def check_submodules():
             if 'path' in l:
                 p = l.split('=')[-1].strip()
                 if not os.path.exists(p):
-                    raise ValueError('Submodule %s missing' % p)
+                    raise ValueError(f'Submodule {p} missing')
 
 
     proc = subprocess.Popen(['git', 'submodule', 'status'],
@@ -180,7 +180,7 @@ def check_submodules():
     status = status.decode("ascii", "replace")
     for line in status.splitlines():
         if line.startswith('-') or line.startswith('+'):
-            raise ValueError('Submodule not clean: %s' % line)
+            raise ValueError(f'Submodule not clean: {line}')
 
 
 class concat_license_files():
@@ -225,6 +225,8 @@ def get_build_ext_override():
     """
     from numpy.distutils.command.build_ext import build_ext as old_build_ext
 
+
+
     class build_ext(old_build_ext):
         def build_extension(self, ext):
             # When compiling with GNU compilers, use a version script to
@@ -233,12 +235,16 @@ def get_build_ext_override():
                 export_symbols = self.get_export_symbols(ext)
                 text = '{global: %s; local: *; };' % (';'.join(export_symbols),)
 
-                script_fn = os.path.join(self.build_temp, 'link-version-{}.map'.format(ext.name))
+                script_fn = os.path.join(self.build_temp, f'link-version-{ext.name}.map')
                 with open(script_fn, 'w') as f:
                     f.write(text)
                     # line below fixes gh-8680
-                    ext.extra_link_args = [arg for arg in ext.extra_link_args if not "version-script" in arg]
-                    ext.extra_link_args.append('-Wl,--version-script=' + script_fn)
+                    ext.extra_link_args = [
+                        arg
+                        for arg in ext.extra_link_args
+                        if "version-script" not in arg
+                    ]
+                    ext.extra_link_args.append(f'-Wl,--version-script={script_fn}')
 
             # Allow late configuration
             if hasattr(ext, '_pre_build_hook'):
@@ -268,6 +274,7 @@ def get_build_ext_override():
                     is_gcc = "gcc" in compiler_name or "g++" in compiler_name
             return is_gcc and sysconfig.get_config_var('GNULD') == 'yes'
 
+
     return build_ext
 
 
@@ -284,10 +291,9 @@ def generate_cython():
             # Note, pip may not be installed or not have been used
             import pip
             if LooseVersion(pip.__version__) < LooseVersion('18.0.0'):
-                raise RuntimeError("Cython not found or too old. Possibly due "
-                                   "to `pip` being too old, found version {}, "
-                                   "needed is >= 18.0.0.".format(
-                                   pip.__version__))
+                raise RuntimeError(
+                    f"Cython not found or too old. Possibly due to `pip` being too old, found version {pip.__version__}, needed is >= 18.0.0."
+                )
             else:
                 raise RuntimeError("Running cythonize failed!")
         except ImportError:
@@ -398,9 +404,9 @@ def parse_setuppy_commands():
     for command in ('upload_docs', 'easy_install', 'bdist', 'bdist_dumb',
                      'register', 'check', 'install_data', 'install_headers',
                      'install_lib', 'install_scripts', ):
-        bad_commands[command] = "`setup.py %s` is not supported" % command
+        bad_commands[command] = f"`setup.py {command}` is not supported"
 
-    for command in bad_commands.keys():
+    for command in bad_commands:
         if command in args:
             print(textwrap.dedent(bad_commands[command]) +
                   "\nAdd `--force` to your command to use it anyway if you "
@@ -415,9 +421,9 @@ def parse_setuppy_commands():
             return False
 
     # If we got here, we didn't detect what setup.py command was given
-    warnings.warn("Unrecognized setuptools command ('{}'), proceeding with "
-                  "generating Cython sources and expanding templates".format(
-                  ' '.join(sys.argv[1:])))
+    warnings.warn(
+        f"Unrecognized setuptools command ('{' '.join(sys.argv[1:])}'), proceeding with generating Cython sources and expanding templates"
+    )
     return True
 
 

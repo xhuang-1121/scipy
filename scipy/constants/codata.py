@@ -1535,17 +1535,14 @@ physical_constants.update(_physical_constants_2018)
 _current_constants = _physical_constants_2018
 _current_codata = "CODATA 2018"
 
-# check obsolete values
-_obsolete_constants = {}
-for k in physical_constants:
-    if k not in _current_constants:
-        _obsolete_constants[k] = True
-
-# generate some additional aliases
-_aliases = {}
-for k in _physical_constants_2002:
-    if 'magn.' in k:
-        _aliases[k] = k.replace('magn.', 'mag.')
+_obsolete_constants = {
+    k: True for k in physical_constants if k not in _current_constants
+}
+_aliases = {
+    k: k.replace('magn.', 'mag.')
+    for k in _physical_constants_2002
+    if 'magn.' in k
+}
 for k in _physical_constants_2006:
     if 'momentum' in k:
         _aliases[k] = k.replace('momentum', 'mom.um')
@@ -1561,8 +1558,10 @@ class ConstantWarning(DeprecationWarning):
 
 def _check_obsolete(key):
     if key in _obsolete_constants and key not in _aliases:
-        warnings.warn("Constant '%s' is not in current %s data set" % (
-            key, _current_codata), ConstantWarning)
+        warnings.warn(
+            f"Constant '{key}' is not in current {_current_codata} data set",
+            ConstantWarning,
+        )
 
 
 def value(key):
@@ -1694,12 +1693,11 @@ def find(sub=None, disp=False):
                   if sub.lower() in key.lower()]
 
     result.sort()
-    if disp:
-        for key in result:
-            print(key)
-        return
-    else:
+    if not disp:
         return result
+    for key in result:
+        print(key)
+    return
 
 
 # Table is lacking some digits for exact values: calculate from definition

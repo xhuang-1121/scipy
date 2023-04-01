@@ -89,7 +89,7 @@ def run_monitored(code):
 
         m = re.search(r'VmRSS:\s*(\d+)\s*kB', procdata, re.S | re.I)
         if m is not None:
-            memusage = float(m.group(1)) * 1e3
+            memusage = float(m[1]) * 1e3
             peak_memusage = max(memusage, peak_memusage)
 
         time.sleep(0.01)

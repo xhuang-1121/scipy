@@ -56,6 +56,7 @@ Utility tools
  __numpy_version__ --- Numpy version string
 
 """
+
 __all__ = ['test']
 
 from numpy import show_config as show_numpy_config
@@ -67,7 +68,6 @@ from numpy import __version__ as __numpy_version__
 # Import numpy symbols to scipy name space (DEPRECATED)
 from ._lib.deprecation import _deprecated
 import numpy as _num
-linalg = None
 _msg = ('scipy.{0} is deprecated and will be removed in SciPy 2.0.0, '
         'use numpy.{0} instead')
 # deprecate callable objects, skipping classes
@@ -107,6 +107,7 @@ __all__ += _num.__all__
 __all__ += ['randn', 'rand', 'fft', 'ifft']
 
 del _num
+linalg = None
 # Remove the linalg imported from NumPy so that the scipy.linalg package can be
 # imported.
 del linalg
@@ -137,9 +138,10 @@ else:
     from scipy._lib import _pep440
     if _pep440.parse(__numpy_version__) < _pep440.Version('1.14.5'):
         import warnings
-        warnings.warn("NumPy 1.14.5 or above is required for this version of "
-                      "SciPy (detected version %s)" % __numpy_version__,
-                      UserWarning)
+        warnings.warn(
+            f"NumPy 1.14.5 or above is required for this version of SciPy (detected version {__numpy_version__})",
+            UserWarning,
+        )
 
     del _pep440
 
