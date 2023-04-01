@@ -152,9 +152,9 @@ def splprep(x, w=None, u=None, ub=None, ue=None, k=3, task=0, s=None, t=None,
     >>> plt.show()
 
     """
-    res = _impl.splprep(x, w, u, ub, ue, k, task, s, t, full_output, nest, per,
-                        quiet)
-    return res
+    return _impl.splprep(
+        x, w, u, ub, ue, k, task, s, t, full_output, nest, per, quiet
+    )
 
 
 def splrep(x, y, w=None, xb=None, xe=None, k=3, task=0, s=None, t=None,
@@ -285,8 +285,7 @@ def splrep(x, y, w=None, xb=None, xe=None, k=3, task=0, s=None, t=None,
     >>> plt.show()
 
     """
-    res = _impl.splrep(x, y, w, xb, xe, k, task, s, t, full_output, per, quiet)
-    return res
+    return _impl.splrep(x, y, w, xb, xe, k, task, s, t, full_output, per, quiet)
 
 
 def splev(x, tck, der=0, ext=0):
@@ -349,22 +348,20 @@ def splev(x, tck, der=0, ext=0):
         on Numerical Analysis, Oxford University Press, 1993.
 
     """
-    if isinstance(tck, BSpline):
-        if tck.c.ndim > 1:
-            mesg = ("Calling splev() with BSpline objects with c.ndim > 1 is "
-                   "not recommended. Use BSpline.__call__(x) instead.")
-            warnings.warn(mesg, DeprecationWarning)
+    if not isinstance(tck, BSpline):
+        return _impl.splev(x, tck, der, ext)
+    if tck.c.ndim > 1:
+        mesg = ("Calling splev() with BSpline objects with c.ndim > 1 is "
+               "not recommended. Use BSpline.__call__(x) instead.")
+        warnings.warn(mesg, DeprecationWarning)
 
         # remap the out-of-bounds behavior
-        try:
-            extrapolate = {0: True, }[ext]
-        except KeyError:
-            raise ValueError("Extrapolation mode %s is not supported "
-                             "by BSpline." % ext)
+    try:
+        extrapolate = {0: True, }[ext]
+    except KeyError:
+        raise ValueError(f"Extrapolation mode {ext} is not supported by BSpline.")
 
-        return tck(x, der, extrapolate=extrapolate)
-    else:
-        return _impl.splev(x, tck, der, ext)
+    return tck(x, der, extrapolate=extrapolate)
 
 
 def splint(a, b, tck, full_output=0):
@@ -413,19 +410,17 @@ def splint(a, b, tck, full_output=0):
         on Numerical Analysis, Oxford University Press, 1993.
 
     """
-    if isinstance(tck, BSpline):
-        if tck.c.ndim > 1:
-            mesg = ("Calling splint() with BSpline objects with c.ndim > 1 is "
-                   "not recommended. Use BSpline.integrate() instead.")
-            warnings.warn(mesg, DeprecationWarning)
-
-        if full_output != 0:
-            mesg = ("full_output = %s is not supported. Proceeding as if "
-                    "full_output = 0" % full_output)
-
-        return tck.integrate(a, b, extrapolate=False)
-    else:
+    if not isinstance(tck, BSpline):
         return _impl.splint(a, b, tck, full_output)
+    if tck.c.ndim > 1:
+        mesg = ("Calling splint() with BSpline objects with c.ndim > 1 is "
+               "not recommended. Use BSpline.integrate() instead.")
+        warnings.warn(mesg, DeprecationWarning)
+
+    if full_output != 0:
+        mesg = f"full_output = {full_output} is not supported. Proceeding as if full_output = 0"
+
+    return tck.integrate(a, b, extrapolate=False)
 
 
 def sproot(tck, mest=10):
@@ -473,21 +468,20 @@ def sproot(tck, mest=10):
         on Numerical Analysis, Oxford University Press, 1993.
 
     """
-    if isinstance(tck, BSpline):
-        if tck.c.ndim > 1:
-            mesg = ("Calling sproot() with BSpline objects with c.ndim > 1 is "
-                    "not recommended.")
-            warnings.warn(mesg, DeprecationWarning)
-
-        t, c, k = tck.tck
-
-        # _impl.sproot expects the interpolation axis to be last, so roll it.
-        # NB: This transpose is a no-op if c is 1D.
-        sh = tuple(range(c.ndim))
-        c = c.transpose(sh[1:] + (0,))
-        return _impl.sproot((t, c, k), mest)
-    else:
+    if not isinstance(tck, BSpline):
         return _impl.sproot(tck, mest)
+    if tck.c.ndim > 1:
+        mesg = ("Calling sproot() with BSpline objects with c.ndim > 1 is "
+                "not recommended.")
+        warnings.warn(mesg, DeprecationWarning)
+
+    t, c, k = tck.tck
+
+    # _impl.sproot expects the interpolation axis to be last, so roll it.
+    # NB: This transpose is a no-op if c is 1D.
+    sh = tuple(range(c.ndim))
+    c = c.transpose(sh[1:] + (0,))
+    return _impl.sproot((t, c, k), mest)
 
 
 def spalde(x, tck):
@@ -582,22 +576,20 @@ def insert(x, tck, m=1, per=0):
         Numerical Analysis", Oxford University Press, 1993.
 
     """
-    if isinstance(tck, BSpline):
-
-        t, c, k = tck.tck
-
-        # FITPACK expects the interpolation axis to be last, so roll it over
-        # NB: if c array is 1D, transposes are no-ops
-        sh = tuple(range(c.ndim))
-        c = c.transpose(sh[1:] + (0,))
-        t_, c_, k_ = _impl.insert(x, (t, c, k), m, per)
-
-        # and roll the last axis back
-        c_ = np.asarray(c_)
-        c_ = c_.transpose((sh[-1],) + sh[:-1])
-        return BSpline(t_, c_, k_)
-    else:
+    if not isinstance(tck, BSpline):
         return _impl.insert(x, tck, m, per)
+    t, c, k = tck.tck
+
+    # FITPACK expects the interpolation axis to be last, so roll it over
+    # NB: if c array is 1D, transposes are no-ops
+    sh = tuple(range(c.ndim))
+    c = c.transpose(sh[1:] + (0,))
+    t_, c_, k_ = _impl.insert(x, (t, c, k), m, per)
+
+    # and roll the last axis back
+    c_ = np.asarray(c_)
+    c_ = c_.transpose((sh[-1],) + sh[:-1])
+    return BSpline(t_, c_, k_)
 
 
 def splder(tck, n=1):
@@ -650,10 +642,7 @@ def splder(tck, n=1):
     :math:`\\cos(x) = \\sin'(x)`.
 
     """
-    if isinstance(tck, BSpline):
-        return tck.derivative(n)
-    else:
-        return _impl.splder(tck, n)
+    return tck.derivative(n) if isinstance(tck, BSpline) else _impl.splder(tck, n)
 
 
 def splantider(tck, n=1):

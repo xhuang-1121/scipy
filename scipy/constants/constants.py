@@ -6,6 +6,7 @@ print '10 mile per minute is', 10*mile/minute, 'm/s or', 10*mile/(minute*knot), 
 
 The list is not meant to be comprehensive, but just convenient for everyday use.
 """
+
 """
 BasSw 2006
 physical constants: imported from CODATA
@@ -126,7 +127,7 @@ parsec = au / arcsec
 atm = atmosphere = _cd('standard atmosphere')
 bar = 1e5
 torr = mmHg = atm / 760
-psi = pound * g / (inch * inch)
+psi = pound * g / inch**2
 
 # area in meter**2
 hectare = 1e4

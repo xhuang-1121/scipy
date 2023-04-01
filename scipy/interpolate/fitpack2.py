@@ -175,15 +175,14 @@ class UnivariateSpline(object):
         if s is None or s > 0:
             if not np.all(diff(x) >= 0.0):
                 raise ValueError("x must be increasing if s > 0")
-        else:
-            if not np.all(diff(x) > 0.0):
-                raise ValueError("x must be strictly increasing if s = 0")
+        elif not np.all(diff(x) > 0.0):
+            raise ValueError("x must be strictly increasing if s = 0")
 
         # _data == x,y,w,xb,xe,k,s,n,t,c,fp,fpint,nrdata,ier
         try:
             self.ext = _extrap_modes[ext]
         except KeyError:
-            raise ValueError("Unknown extrapolation mode %s." % ext)
+            raise ValueError(f"Unknown extrapolation mode {ext}.")
 
         data = dfitpack.fpcurf0(x, y, k, w=w, xb=bbox[0],
                                 xe=bbox[1], s=s)
@@ -226,7 +225,7 @@ class UnivariateSpline(object):
             # error
             if ier == 1:
                 self._set_class(LSQUnivariateSpline)
-            message = _curfit_messages.get(ier, 'ier=%s' % (ier))
+            message = _curfit_messages.get(ier, f'ier={ier}')
             warnings.warn(message)
 
     def _set_class(self, cls):
@@ -234,18 +233,14 @@ class UnivariateSpline(object):
         if self.__class__ in (UnivariateSpline, InterpolatedUnivariateSpline,
                               LSQUnivariateSpline):
             self.__class__ = cls
-        else:
-            # It's an unknown subclass -- don't change class. cf. #731
-            pass
 
     def _reset_nest(self, data, nest=None):
         n = data[10]
         if nest is None:
             k, m = data[5], len(data[0])
             nest = m+k+1  # this is the maximum bound for nest
-        else:
-            if not n <= nest:
-                raise ValueError("`nest` can only be increased")
+        elif not n <= nest:
+            raise ValueError("`nest` can only be increased")
         t, c, fpint, nrdata = [np.resize(data[j], nest) for j in
                                [8, 9, 11, 12]]
 
@@ -311,7 +306,7 @@ class UnivariateSpline(object):
             try:
                 ext = _extrap_modes[ext]
             except KeyError:
-                raise ValueError("Unknown extrapolation mode %s." % ext)
+                raise ValueError(f"Unknown extrapolation mode {ext}.")
         return fitpack.splev(x, self._eval_args, der=nu, ext=ext)
 
     def get_knots(self):
@@ -401,8 +396,8 @@ class UnivariateSpline(object):
 
         """
         d, ier = dfitpack.spalde(*(self._eval_args+(x,)))
-        if not ier == 0:
-            raise ValueError("Error code returned by spalde: %s" % ier)
+        if ier != 0:
+            raise ValueError(f"Error code returned by spalde: {ier}")
         return d
 
     def roots(self):
@@ -413,8 +408,8 @@ class UnivariateSpline(object):
         k = self._data[5]
         if k == 3:
             z, m, ier = dfitpack.sproot(*self._eval_args[:2])
-            if not ier == 0:
-                raise ValueError("Error code returned by spalde: %s" % ier)
+            if ier != 0:
+                raise ValueError(f"Error code returned by spalde: {ier}")
             return z[:m]
         raise NotImplementedError('finding roots unsupported for '
                                   'non-cubic splines')
@@ -613,7 +608,7 @@ class InterpolatedUnivariateSpline(UnivariateSpline):
         try:
             self.ext = _extrap_modes[ext]
         except KeyError:
-            raise ValueError("Unknown extrapolation mode %s." % ext)
+            raise ValueError(f"Unknown extrapolation mode {ext}.")
 
 
 _fpchec_error_string = """The input parameters have been rejected by fpchec. \
@@ -756,7 +751,7 @@ class LSQUnivariateSpline(UnivariateSpline):
         if not np.all(t[k+1:n-k]-t[k:n-k-1] > 0, axis=0):
             raise ValueError('Interior knots t must satisfy '
                              'Schoenberg-Whitney conditions')
-        if not dfitpack.fpchec(x, t, k) == 0:
+        if dfitpack.fpchec(x, t, k) != 0:
             raise ValueError(_fpchec_error_string)
         data = dfitpack.fpcurfm1(x, y, k, t, w=w, xb=xb, xe=xe)
         self._data = data[:-3] + (None, None, data[-1])
@@ -765,7 +760,7 @@ class LSQUnivariateSpline(UnivariateSpline):
         try:
             self.ext = _extrap_modes[ext]
         except KeyError:
-            raise ValueError("Unknown extrapolation mode %s." % ext)
+            raise ValueError(f"Unknown extrapolation mode {ext}.")
 
 
 # ############### Bivariate spline ####################
@@ -847,12 +842,12 @@ class _BivariateSplineBase(object):
 
             if dx or dy:
                 z, ier = dfitpack.parder(tx, ty, c, kx, ky, dx, dy, x, y)
-                if not ier == 0:
-                    raise ValueError("Error code returned by parder: %s" % ier)
+                if ier != 0:
+                    raise ValueError(f"Error code returned by parder: {ier}")
             else:
                 z, ier = dfitpack.bispev(tx, ty, c, kx, ky, x, y)
-                if not ier == 0:
-                    raise ValueError("Error code returned by bispev: %s" % ier)
+                if ier != 0:
+                    raise ValueError(f"Error code returned by bispev: {ier}")
         else:
             # standard Numpy broadcasting
             if x.shape != y.shape:
@@ -867,12 +862,12 @@ class _BivariateSplineBase(object):
 
             if dx or dy:
                 z, ier = dfitpack.pardeu(tx, ty, c, kx, ky, dx, dy, x, y)
-                if not ier == 0:
-                    raise ValueError("Error code returned by pardeu: %s" % ier)
+                if ier != 0:
+                    raise ValueError(f"Error code returned by pardeu: {ier}")
             else:
                 z, ier = dfitpack.bispeu(tx, ty, c, kx, ky, x, y)
-                if not ier == 0:
-                    raise ValueError("Error code returned by bispeu: %s" % ier)
+                if ier != 0:
+                    raise ValueError(f"Error code returned by bispeu: {ier}")
 
             z = z.reshape(shape)
         return z
@@ -1056,10 +1051,8 @@ class SmoothBivariateSpline(BivariateSpline):
                                                                     s=s,
                                                                     eps=eps,
                                                                     lwrk2=ier)
-        if ier in [0, -1, -2]:  # normal return
-            pass
-        else:
-            message = _surfit_messages.get(ier, 'ier=%s' % (ier))
+        if ier not in [0, -1, -2]:
+            message = _surfit_messages.get(ier, f'ier={ier}')
             warnings.warn(message)
 
         self.fp = fp
@@ -1120,14 +1113,12 @@ class LSQBivariateSpline(BivariateSpline):
             tx1, ty1, c, fp, ier = dfitpack.surfit_lsq(x, y, z, tx1, ty1, w,
                                                        xb, xe, yb, ye,
                                                        kx, ky, eps, lwrk2=ier)
-        if ier in [0, -1, -2]:  # normal return
-            pass
-        else:
+        if ier not in [0, -1, -2]:
             if ier < -2:
                 deficiency = (nx-kx-1)*(ny-ky-1)+ier
                 message = _surfit_messages.get(-3) % (deficiency)
             else:
-                message = _surfit_messages.get(ier, 'ier=%s' % (ier))
+                message = _surfit_messages.get(ier, f'ier={ier}')
             warnings.warn(message)
         self.fp = fp
         self.tck = tx1, ty1, c
@@ -1172,14 +1163,14 @@ class RectBivariateSpline(BivariateSpline):
             raise ValueError('x must be strictly increasing')
         if not np.all(diff(y) > 0.0):
             raise ValueError('y must be strictly increasing')
-        if not ((x.min() == x[0]) and (x.max() == x[-1])):
+        if x.min() != x[0] or x.max() != x[-1]:
             raise ValueError('x must be strictly ascending')
-        if not ((y.min() == y[0]) and (y.max() == y[-1])):
+        if y.min() != y[0] or y.max() != y[-1]:
             raise ValueError('y must be strictly ascending')
-        if not x.size == z.shape[0]:
+        if x.size != z.shape[0]:
             raise ValueError('x dimension of z must have same number of '
                              'elements as x')
-        if not y.size == z.shape[1]:
+        if y.size != z.shape[1]:
             raise ValueError('y dimension of z must have same number of '
                              'elements as y')
         z = ravel(z)
@@ -1188,7 +1179,7 @@ class RectBivariateSpline(BivariateSpline):
                                                           ye, kx, ky, s)
 
         if ier not in [0, -1, -2]:
-            msg = _surfit_messages.get(ier, 'ier=%s' % (ier))
+            msg = _surfit_messages.get(ier, f'ier={ier}')
             raise ValueError(msg)
 
         self.fp = fp
@@ -1386,7 +1377,7 @@ class SmoothSphereBivariateSpline(SphereBivariateSpline):
                                                                 r, w=w, s=s,
                                                                 eps=eps)
         if ier not in [0, -1, -2]:
-            message = _spherefit_messages.get(ier, 'ier=%s' % (ier))
+            message = _spherefit_messages.get(ier, f'ier={ier}')
             raise ValueError(message)
 
         self.fp = fp
@@ -1494,7 +1485,7 @@ class LSQSphereBivariateSpline(SphereBivariateSpline):
             message = _spherefit_messages.get(-3) % (deficiency, -ier)
             warnings.warn(message, stacklevel=2)
         elif ier not in [0, -1, -2]:
-            message = _spherefit_messages.get(ier, 'ier=%s' % (ier))
+            message = _spherefit_messages.get(ier, f'ier={ier}')
             raise ValueError(message)
 
         self.fp = fp
@@ -1680,16 +1671,8 @@ class RectSphereBivariateSpline(SphereBivariateSpline):
 
         r0, r1 = pole_values
         iopt[1:] = pole_continuity
-        if r0 is None:
-            ider[0] = -1
-        else:
-            ider[0] = pole_exact[0]
-
-        if r1 is None:
-            ider[2] = -1
-        else:
-            ider[2] = pole_exact[1]
-
+        ider[0] = -1 if r0 is None else pole_exact[0]
+        ider[2] = -1 if r1 is None else pole_exact[1]
         ider[1], ider[3] = pole_flat
 
         u, v = np.ravel(u), np.ravel(v)
@@ -1698,10 +1681,10 @@ class RectSphereBivariateSpline(SphereBivariateSpline):
         if not np.all(np.diff(v) > 0.0):
             raise ValueError('v must be strictly increasing')
 
-        if not u.size == r.shape[0]:
+        if u.size != r.shape[0]:
             raise ValueError('u dimension of r must have same number of '
                              'elements as u')
-        if not v.size == r.shape[1]:
+        if v.size != r.shape[1]:
             raise ValueError('v dimension of r must have same number of '
                              'elements as v')
 
@@ -1717,7 +1700,7 @@ class RectSphereBivariateSpline(SphereBivariateSpline):
                                        u.copy(), v.copy(), r.copy(), r0, r1, s)
 
         if ier not in [0, -1, -2]:
-            msg = _spfit_messages.get(ier, 'ier=%s' % (ier))
+            msg = _spfit_messages.get(ier, f'ier={ier}')
             raise ValueError(msg)
 
         self.fp = fp

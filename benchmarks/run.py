@@ -61,7 +61,9 @@ def run_asv(args):
     # repository
     if args and (args[0] == 'dev' or '--python=same' in args):
         import scipy
-        print("Running benchmarks for Scipy version %s at %s" % (scipy.__version__, scipy.__file__))
+        print(
+            f"Running benchmarks for Scipy version {scipy.__version__} at {scipy.__file__}"
+        )
 
     # Override gh-pages
     if 'gh-pages' in args:
@@ -83,11 +85,15 @@ def drop_bad_flags(flags):
     """
     Drop flags that are problematic for compiling old scipy versions
     """
-    if not flags:
-        return flags
-    return " ".join(x for x in flags.split()
-                    if not (x.startswith("-Werror")
-                            or x in ("-pedantic-errors",)))
+    return (
+        " ".join(
+            x
+            for x in flags.split()
+            if not x.startswith("-Werror") and x not in ("-pedantic-errors",)
+        )
+        if flags
+        else flags
+    )
 
 
 if __name__ == "__main__":

@@ -45,7 +45,7 @@ def _cached_roots_legendre(n):
     return _cached_roots_legendre.cache[n]
 
 
-_cached_roots_legendre.cache = dict()
+_cached_roots_legendre.cache = {}
 
 
 def fixed_quad(func, a, b, args=(), n=5):
@@ -356,25 +356,24 @@ def _basic_simps(y, start, stop, x, dx, axis):
     slice1 = tupleset(slice_all, axis, slice(start+1, stop+1, step))
     slice2 = tupleset(slice_all, axis, slice(start+2, stop+2, step))
 
-    if x is None:  # Even-spaced Simpson's rule.
-        result = np.sum(dx/3.0 * (y[slice0]+4*y[slice1]+y[slice2]),
-                        axis=axis)
-    else:
-        # Account for possibly different spacings.
-        #    Simpson's rule changes a bit.
-        h = np.diff(x, axis=axis)
-        sl0 = tupleset(slice_all, axis, slice(start, stop, step))
-        sl1 = tupleset(slice_all, axis, slice(start+1, stop+1, step))
-        h0 = h[sl0]
-        h1 = h[sl1]
-        hsum = h0 + h1
-        hprod = h0 * h1
-        h0divh1 = h0 / h1
-        tmp = hsum/6.0 * (y[slice0]*(2-1.0/h0divh1) +
-                          y[slice1]*hsum*hsum/hprod +
-                          y[slice2]*(2-h0divh1))
-        result = np.sum(tmp, axis=axis)
-    return result
+    if x is None:
+        return np.sum(
+            dx / 3.0 * (y[slice0] + 4 * y[slice1] + y[slice2]), axis=axis
+        )
+    # Account for possibly different spacings.
+    #    Simpson's rule changes a bit.
+    h = np.diff(x, axis=axis)
+    sl0 = tupleset(slice_all, axis, slice(start, stop, step))
+    sl1 = tupleset(slice_all, axis, slice(start+1, stop+1, step))
+    h0 = h[sl0]
+    h1 = h[sl1]
+    hsum = h0 + h1
+    hprod = h0 * h1
+    h0divh1 = h0 / h1
+    tmp = hsum/6.0 * (y[slice0]*(2-1.0/h0divh1) +
+                      y[slice1]*hsum*hsum/hprod +
+                      y[slice2]*(2-h0divh1))
+    return np.sum(tmp, axis=axis)
 
 
 def simps(y, x=None, dx=1, axis=-1, even='avg'):
@@ -652,8 +651,7 @@ def _difftrap(function, interval, numtraps):
         h = float(interval[1]-interval[0])/numtosum
         lox = interval[0] + 0.5 * h
         points = lox + h * np.arange(numtosum)
-        s = np.sum(function(points), axis=0)
-        return s
+        return np.sum(function(points), axis=0)
 
 
 def _romberg_diff(b, c, k):
@@ -782,8 +780,7 @@ def romberg(function, a, b, args=(), tol=1.48e-8, rtol=1.48e-8, show=False,
         n *= 2
         ordsum += _difftrap(vfunc, interval, n)
         row = [intrange * ordsum / n]
-        for k in range(i):
-            row.append(_romberg_diff(last_row[k], row[k], k+1))
+        row.extend(_romberg_diff(last_row[k], row[k], k+1) for k in range(i))
         result = row[i]
         lastresult = last_row[i-1]
         if show:
@@ -952,7 +949,7 @@ def newton_cotes(rn, equal=0):
     C = ti ** nvec[:, np.newaxis]
     Cinv = np.linalg.inv(C)
     # improve precision of result
-    for i in range(2):
+    for _ in range(2):
         Cinv = 2*Cinv - Cinv.dot(C).dot(Cinv)
     vec = 2.0 / (nvec[::2]+1)
     ai = Cinv[:, ::2].dot(vec) * (N / 2.)

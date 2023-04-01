@@ -25,11 +25,7 @@ def prepare_input(x, y, axis, dydx=None):
         raise ValueError("`x` must contain real values.")
     x = x.astype(float)
 
-    if np.issubdtype(y.dtype, np.complexfloating):
-        dtype = complex
-    else:
-        dtype = float
-
+    dtype = complex if np.issubdtype(y.dtype, np.complexfloating) else float
     if dydx is not None:
         dydx = np.asarray(dydx)
         if y.shape != dydx.shape:
@@ -617,11 +613,7 @@ class CubicSpline(CubicHermiteSpline):
         bc, y = self._validate_bc(bc_type, y, y.shape[1:], axis)
 
         if extrapolate is None:
-            if bc[0] == 'periodic':
-                extrapolate = 'periodic'
-            else:
-                extrapolate = True
-
+            extrapolate = 'periodic' if bc[0] == 'periodic' else True
         dxr = dx.reshape([dx.shape[0]] + [1] * (y.ndim - 1))
         slope = np.diff(y, axis=0) / dxr
 
@@ -777,12 +769,12 @@ class CubicSpline(CubicHermiteSpline):
             complex dtype.
         """
         if isinstance(bc_type, str):
-            if bc_type == 'periodic':
-                if not np.allclose(y[0], y[-1], rtol=1e-15, atol=1e-15):
-                    raise ValueError(
-                        "The first and last `y` point along axis {} must "
-                        "be identical (within machine precision) when "
-                        "bc_type='periodic'.".format(axis))
+            if bc_type == 'periodic' and not np.allclose(
+                y[0], y[-1], rtol=1e-15, atol=1e-15
+            ):
+                raise ValueError(
+                    f"The first and last `y` point along axis {axis} must be identical (within machine precision) when bc_type='periodic'."
+                )
 
             bc_type = (bc_type, bc_type)
 
@@ -806,7 +798,7 @@ class CubicSpline(CubicHermiteSpline):
                 elif bc in ['not-a-knot', 'periodic']:
                     validated_bc.append(bc)
                 else:
-                    raise ValueError("bc_type={} is not allowed.".format(bc))
+                    raise ValueError(f"bc_type={bc} is not allowed.")
             else:
                 try:
                     deriv_order, deriv_value = bc
@@ -821,8 +813,8 @@ class CubicSpline(CubicHermiteSpline):
                 deriv_value = np.asarray(deriv_value)
                 if deriv_value.shape != expected_deriv_shape:
                     raise ValueError(
-                        "`deriv_value` shape {} is not the expected one {}."
-                        .format(deriv_value.shape, expected_deriv_shape))
+                        f"`deriv_value` shape {deriv_value.shape} is not the expected one {expected_deriv_shape}."
+                    )
 
                 if np.issubdtype(deriv_value.dtype, np.complexfloating):
                     y = y.astype(complex, copy=False)

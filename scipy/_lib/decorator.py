@@ -116,16 +116,16 @@ class FunctionMaker(object):
                     allargs = list(self.args)
                     allshortargs = list(self.args)
                     if self.varargs:
-                        allargs.append('*' + self.varargs)
-                        allshortargs.append('*' + self.varargs)
+                        allargs.append(f'*{self.varargs}')
+                        allshortargs.append(f'*{self.varargs}')
                     elif self.kwonlyargs:
                         allargs.append('*')  # single star syntax
                     for a in self.kwonlyargs:
-                        allargs.append('%s=None' % a)
-                        allshortargs.append('%s=%s' % (a, a))
+                        allargs.append(f'{a}=None')
+                        allshortargs.append(f'{a}={a}')
                     if self.varkw:
-                        allargs.append('**' + self.varkw)
-                        allshortargs.append('**' + self.varkw)
+                        allargs.append(f'**{self.varkw}')
+                        allshortargs.append(f'**{self.varkw}')
                     self.signature = ', '.join(allargs)
                     self.shortsignature = ', '.join(allshortargs)
                 self.dict = func.__dict__.copy()
@@ -145,7 +145,7 @@ class FunctionMaker(object):
         # check existence required attributes
         assert hasattr(self, 'name')
         if not hasattr(self, 'signature'):
-            raise TypeError('You are decorating a non-function: %s' % func)
+            raise TypeError(f'You are decorating a non-function: {func}')
 
     def update(self, func, **kw):
         "Update the signature of func with the data in self"
@@ -215,7 +215,7 @@ class FunctionMaker(object):
             signature = None
             func = obj
         self = cls(func, name, signature, defaults, doc, module)
-        ibody = '\n'.join('    ' + line for line in body.splitlines())
+        ibody = '\n'.join(f'    {line}' for line in body.splitlines())
         return self.make('def %(name)s(%(signature)s):\n' + ibody,
                          evaldict, addsource, **attrs)
 
@@ -247,10 +247,7 @@ def decorator(caller, _func=None):
         doc = 'decorator(%s) converts functions/generators into ' \
             'factories of %s objects' % (caller.__name__, caller.__name__)
     elif inspect.isfunction(caller):
-        if caller.__name__ == '<lambda>':
-            name = '_lambda_'
-        else:
-            name = caller.__name__
+        name = '_lambda_' if caller.__name__ == '<lambda>' else caller.__name__
         callerfunc = caller
         doc = caller.__doc__
     else:  # assume caller is an object with a __call__ method
@@ -261,9 +258,13 @@ def decorator(caller, _func=None):
     evaldict['_call_'] = caller
     evaldict['_decorate_'] = decorate
     return FunctionMaker.create(
-        '%s(func)' % name, 'return _decorate_(func, _call_)',
-        evaldict, doc=doc, module=caller.__module__,
-        __wrapped__=caller)
+        f'{name}(func)',
+        'return _decorate_(func, _call_)',
+        evaldict,
+        doc=doc,
+        module=caller.__module__,
+        __wrapped__=caller,
+    )
 
 
 # ####################### contextmanager ####################### #
@@ -324,7 +325,7 @@ def dispatch_on(*dispatch_args):
     dispatching on the given arguments.
     """
     assert dispatch_args, 'No dispatch args passed'
-    dispatch_str = '(%s,)' % ', '.join(dispatch_args)
+    dispatch_str = f"({', '.join(dispatch_args)},)"
 
     def check(arguments, wrong=operator.ne, msg=''):
         """Make sure one passes the expected number of arguments"""
@@ -338,7 +339,7 @@ def dispatch_on(*dispatch_args):
         # first check the dispatch arguments
         argset = set(getfullargspec(func).args)
         if not set(dispatch_args) <= argset:
-            raise NameError('Unknown dispatch arguments %s' % dispatch_str)
+            raise NameError(f'Unknown dispatch arguments {dispatch_str}')
 
         typemap = {}
 
@@ -363,8 +364,7 @@ def dispatch_on(*dispatch_args):
             for t, vas in zip(types, vancestors(*types)):
                 n_vas = len(vas)
                 if n_vas > 1:
-                    raise RuntimeError(
-                        'Ambiguous dispatch for %s: %s' % (t, vas))
+                    raise RuntimeError(f'Ambiguous dispatch for {t}: {vas}')
                 elif n_vas == 1:
                     va, = vas
                     mro = type('t', (t, va), {}).__mro__[1:]
@@ -380,9 +380,10 @@ def dispatch_on(*dispatch_args):
             check(types)
 
             def dec(f):
-                check(getfullargspec(f).args, operator.lt, ' in ' + f.__name__)
+                check(getfullargspec(f).args, operator.lt, f' in {f.__name__}')
                 typemap[types] = f
                 return f
+
             return dec
 
         def dispatch_info(*types):
@@ -418,5 +419,5 @@ def dispatch_on(*dispatch_args):
             typemap=typemap, vancestors=vancestors, ancestors=ancestors,
             dispatch_info=dispatch_info, __wrapped__=func)
 
-    gen_func_dec.__name__ = 'dispatch_on' + dispatch_str
+    gen_func_dec.__name__ = f'dispatch_on{dispatch_str}'
     return gen_func_dec

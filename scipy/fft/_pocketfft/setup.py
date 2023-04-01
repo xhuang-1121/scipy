@@ -12,18 +12,17 @@ def pre_build_hook(build_ext, ext):
     if cc.compiler_type == 'msvc':
         args.append('/EHsc')
     else:
-        # Use pthreads if available
-        has_pthreads = try_compile(cc, code='#include <pthread.h>\n'
-                                   'int main(int argc, char **argv) {}')
-        if has_pthreads:
+        if has_pthreads := try_compile(
+            cc,
+            code='#include <pthread.h>\n' 'int main(int argc, char **argv) {}',
+        ):
             ext.define_macros.append(('POCKETFFT_PTHREADS', None))
-            if has_flag(cc, '-pthread'):
-                args.append('-pthread')
-                ext.extra_link_args.append('-pthread')
-            else:
+            if not has_flag(cc, '-pthread'):
                 raise RuntimeError("Build failed: System has pthreads header "
                                    "but could not compile with -pthread option")
 
+            args.append('-pthread')
+            ext.extra_link_args.append('-pthread')
         # Don't export library symbols
         try_add_flag(args, cc, '-fvisibility=hidden')
         # Set min macOS version

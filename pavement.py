@@ -61,6 +61,7 @@ TODO
       the same underlying Python for egg install in venv and for bdist_mpkg
 """
 
+
 import os
 import sys
 import subprocess
@@ -72,8 +73,8 @@ from hashlib import sha256
 
 try:
     from paver.tasks import VERSION as _PVER
-    if not _PVER >= '1.0':
-        raise RuntimeError("paver version >= 1.0 required (was %s)" % _PVER)
+    if _PVER < '1.0':
+        raise RuntimeError(f"paver version >= 1.0 required (was {_PVER})")
 except ImportError:
     raise RuntimeError("paver version >= 1.0 required")
 
@@ -87,16 +88,12 @@ try:
     setup_py = __import__("setup")
     FULLVERSION = setup_py.VERSION
     # This is duplicated from setup.py
-    if os.path.exists('.git'):
-        GIT_REVISION = setup_py.git_version()
-    else:
-        GIT_REVISION = "Unknown"
-
+    GIT_REVISION = setup_py.git_version() if os.path.exists('.git') else "Unknown"
     if not setup_py.ISRELEASED:
         if GIT_REVISION == "Unknown":
             FULLVERSION += '.dev0+Unknown'
         else:
-            FULLVERSION += '.dev0+' + GIT_REVISION[:7]
+            FULLVERSION += f'.dev0+{GIT_REVISION[:7]}'
 finally:
     sys.path.pop(0)
 
@@ -153,19 +150,17 @@ SITECFG = {"sse3" : {'BLAS': 'None', 'LAPACK': 'None',
            "nosse" : {'ATLAS': 'None', 'BLAS': r'C:\local\lib\atlas\nosse',
                       'LAPACK': r'C:\local\lib\atlas\nosse'}}
 
+WINDOWS_ENV = os.environ
 # Wine config for win32 builds
-if sys.platform == "win32":
-    WINE_PY35 = [r"C:\Python35\python.exe"]
-    WINDOWS_ENV = os.environ
-    MAKENSIS = ["makensis"]
-elif sys.platform == "darwin":
+if sys.platform == "darwin":
     WINE_PY35 = ["wine", os.environ['HOME'] + "/.wine/drive_c/Python35/python.exe"]
-    WINDOWS_ENV = os.environ
     WINDOWS_ENV["DYLD_FALLBACK_LIBRARY_PATH"] = "/usr/X11/lib:/usr/lib"
     MAKENSIS = ["wine", "makensis"]
+elif sys.platform == "win32":
+    WINE_PY35 = [r"C:\Python35\python.exe"]
+    MAKENSIS = ["makensis"]
 else:
     WINE_PY35 = [os.environ['HOME'] + "/.wine/drive_c/Python35/python.exe"]
-    WINDOWS_ENV = os.environ
     MAKENSIS = ["wine", "makensis"]
 WINE_PYS = {'3.5':WINE_PY35}
 
@@ -193,13 +188,12 @@ def parse_numpy_version(pyexec):
     p = subprocess.Popen(" ".join(cmd), stdout=subprocess.PIPE, shell=True)
     out = p.communicate()[0]
     if p.returncode:
-        raise RuntimeError("Command %s failed" % " ".join(cmd))
+        raise RuntimeError(f'Command {" ".join(cmd)} failed')
 
-    a = re.compile("^([0-9]+)\.([0-9]+)\.([0-9]+)")
-    if a:
-        return tuple([int(i) for i in a.match(out).groups()[:3]])
+    if a := re.compile("^([0-9]+)\.([0-9]+)\.([0-9]+)"):
+        return tuple(int(i) for i in a.match(out).groups()[:3])
     else:
-        raise ValueError("Could not parse version (%s)" % out)
+        raise ValueError(f"Could not parse version ({out})")
 
 @task
 def bootstrap():
@@ -218,7 +212,7 @@ def bootstrap():
                                                   bscript)
     options.bootstrap.no_site_packages = False
     call_task('paver.virtual.bootstrap')
-    sh('cd %s; %s %s' % (bdir, sys.executable, bscript))
+    sh(f'cd {bdir}; {sys.executable} {bscript}')
 
 @task
 def clean():
@@ -282,16 +276,16 @@ def pdf():
     shutil.copy(ref, os.path.join(destdir_pdf, "reference.pdf"))
 
 def tarball_name(type='gztar'):
-    root = 'scipy-%s' % FULLVERSION
+    root = f'scipy-{FULLVERSION}'
     if type == 'gztar':
-        return root + '.tar.gz'
-    elif type == 'xztar':
-        return root + '.tar.xz'
+        return f'{root}.tar.gz'
     elif type == 'tar':
-        return root + '.tar'
+        return f'{root}.tar'
+    elif type == 'xztar':
+        return f'{root}.tar.xz'
     elif type == 'zip':
-        return root + '.zip'
-    raise ValueError("Unknown type %s" % type)
+        return f'{root}.zip'
+    raise ValueError(f"Unknown type {type}")
 
 @task
 def sdist():
@@ -312,7 +306,7 @@ def sdist():
     sh('python setup.py sdist --formats=tar')
     if os.path.exists(os.path.join('dist', tarball_name("xztar"))):
         os.unlink(os.path.join('dist', tarball_name("xztar")))
-    sh('xz %s' % os.path.join('dist', tarball_name("tar")), ignore_error=True)
+    sh(f"""xz {os.path.join('dist', tarball_name("tar"))}""", ignore_error=True)
 
     # Copy the sdists into installers dir
     if not os.path.exists(options.installers.installersdir):
@@ -349,18 +343,18 @@ def release(options):
 
 def superpack_name(pyver, numver):
     """Return the filename of the superpack installer."""
-    return 'scipy-%s-win32-superpack-python%s.exe' % (numver, pyver)
+    return f'scipy-{numver}-win32-superpack-python{pyver}.exe'
 
 def internal_wininst_name(arch):
     """Return the name of the wininst as it will be inside the superpack (i.e.
     with the arch encoded."""
     ext = '.exe'
-    return "scipy-%s-%s%s" % (FULLVERSION, arch, ext)
+    return f"scipy-{FULLVERSION}-{arch}{ext}"
 
 def wininst_name(pyver):
     """Return the name of the installer built by wininst command."""
     ext = '.exe'
-    return "scipy-%s.win32-py%s%s" % (FULLVERSION, pyver, ext)
+    return f"scipy-{FULLVERSION}.win32-py{pyver}{ext}"
 
 def bdist_wininst_arch(pyver, arch):
     """Arch-specific wininst build."""
@@ -380,8 +374,7 @@ def prepare_nsis_script(pyver, numver):
     cnt = "".join(source.readlines())
     cnt = cnt.replace('@SCIPY_INSTALLER_NAME@', installer_name)
     for arch in ['nosse', 'sse2', 'sse3']:
-        cnt = cnt.replace('@%s_BINARY@' % arch.upper(),
-                          internal_wininst_name(arch))
+        cnt = cnt.replace(f'@{arch.upper()}_BINARY@', internal_wininst_name(arch))
     target.write(cnt)
 
 @task
@@ -419,7 +412,7 @@ def bdist_superpack(options):
             # May be due to dev version having 'Unknown' in name, if git isn't
             # found. This can be the case when compiling under Wine.
             ix = source.find('.dev0+') + 6
-            source = source[:ix] + 'Unknown' + source[ix+7:]
+            source = f'{source[:ix]}Unknown{source[ix + 7:]}'
             os.rename(source, target)
 
     bdist_wininst_arch(pyver, 'nosse')
@@ -486,23 +479,21 @@ def dmg_name(fullversion, pyver, osxver=None):
     # (should be done in the release script).
     if not osxver:
         osxver = os.environ.get('MACOSX_DEPLOYMENT_TARGET', '10.3')
-    return "scipy-%s-py%s-python.org-macosx%s.dmg" % (fullversion, pyver,
-                                                      osxver)
+    return f"scipy-{fullversion}-py{pyver}-python.org-macosx{osxver}.dmg"
 
 def macosx_version():
-    if not sys.platform == 'darwin':
+    if sys.platform != 'darwin':
         raise ValueError("Not darwin ??")
     st = subprocess.Popen(["sw_vers"], stdout=subprocess.PIPE)
     out = st.stdout.readlines()
     ver = re.compile("ProductVersion:\s+([0-9]+)\.([0-9]+)\.([0-9]+)")
     for i in out:
-        m = ver.match(i)
-        if m:
+        if m := ver.match(i):
             return m.groups()
 
 def mpkg_name(pyver):
     maj, min = macosx_version()[:2]
-    return "scipy-%s-py%s-macosx%s.%s.mpkg" % (FULLVERSION, pyver, maj, min)
+    return f"scipy-{FULLVERSION}-py{pyver}-macosx{maj}.{min}.mpkg"
 
 def prepare_static_gfortran_runtime(d):
     if not os.path.exists(d):
@@ -523,11 +514,11 @@ def bdist_mpkg():
 
 def _build_mpkg(pyver):
     numver = parse_numpy_version(MPKG_PYTHON[pyver])
-    numverstr = ".".join(["%i" % i for i in numver])
-    if pyver < "3.3":
-        if not numver == (1, 8, 2):
-            raise ValueError("SciPy 0.19.x should be built against numpy "
-                             "1.8.2, (detected %s) for Python >= 3.4" % numverstr)
+    if pyver < "3.3" and numver != (1, 8, 2):
+        numverstr = ".".join(["%i" % i for i in numver])
+        raise ValueError(
+            f"SciPy 0.19.x should be built against numpy 1.8.2, (detected {numverstr}) for Python >= 3.4"
+        )
 
     prepare_static_gfortran_runtime("build")
     # account for differences between Python 2.7.1 versions from python.org
@@ -535,9 +526,9 @@ def _build_mpkg(pyver):
         ldflags = "-undefined dynamic_lookup -bundle -arch i386 -arch x86_64 -Wl,-search_paths_first"
     else:
         ldflags = "-undefined dynamic_lookup -bundle -arch i386 -arch ppc -Wl,-search_paths_first"
-    ldflags += " -L%s" % os.path.join(os.path.dirname(__file__), "build")
+    ldflags += f' -L{os.path.join(os.path.dirname(__file__), "build")}'
 
-    sh("LDFLAGS='%s' %s setup.py bdist_mpkg" % (ldflags, MPKG_PYTHON[pyver]))
+    sh(f"LDFLAGS='{ldflags}' {MPKG_PYTHON[pyver]} setup.py bdist_mpkg")
 
 
 @task
@@ -576,7 +567,7 @@ def dmg():
 
     # Copy mpkg into image source
     mpkg_source = os.path.join("dist", mpkg_name(pyver))
-    mpkg_target = os.path.join(content, "scipy-%s-py%s.mpkg" % (FULLVERSION, pyver))
+    mpkg_target = os.path.join(content, f"scipy-{FULLVERSION}-py{pyver}.mpkg")
     shutil.copytree(mpkg_source, mpkg_target)
 
     # Copy docs into image source
@@ -620,7 +611,7 @@ def simple_dmg():
     # Build the dmg
     shutil.copytree(os.path.join("dist", mpkg_name(pyver)),
                     os.path.join(src_dir, mpkg_name(pyver)))
-    _create_dmg(pyver, src_dir, "Scipy Universal %s" % FULLVERSION)
+    _create_dmg(pyver, src_dir, f"Scipy Universal {FULLVERSION}")
 
 def _create_dmg(pyver, src_dir, volname=None):
     # Build the dmg
@@ -629,7 +620,7 @@ def _create_dmg(pyver, src_dir, volname=None):
     image.remove()
     cmd = ["hdiutil", "create", image_name, "-srcdir", src_dir]
     if volname:
-        cmd.extend(["-volname", "'%s'" % volname])
+        cmd.extend(["-volname", f"'{volname}'"])
     sh(" ".join(cmd))
 
 
@@ -642,7 +633,7 @@ def compute_md5(idirs):
     checksums = []
     for f in sorted(released):
         m = md5(open(f, 'rb').read())
-        checksums.append('%s  %s' % (m.hexdigest(), os.path.basename(f)))
+        checksums.append(f'{m.hexdigest()}  {os.path.basename(f)}')
 
     return checksums
 
@@ -653,7 +644,7 @@ def compute_sha256(idirs):
     checksums = []
     for f in sorted(released):
         m = sha256(open(f, 'rb').read())
-        checksums.append('%s  %s' % (m.hexdigest(), os.path.basename(f)))
+        checksums.append(f'{m.hexdigest()}  {os.path.basename(f)}')
 
     return checksums
 
@@ -664,7 +655,7 @@ def write_release_task(options, filename='NOTES.txt'):
     if target.exists():
         target.remove()
 
-    tmp_target = paver.path.path(filename + '.tmp')
+    tmp_target = paver.path.path(f'{filename}.tmp')
     source.copy(tmp_target)
 
     with open(str(tmp_target), 'a') as ftarget:
@@ -691,19 +682,18 @@ SHA256
         cmd += ['--default-key', options.gpg_key]
     cmd += ['--output', str(target), str(tmp_target)]
     subprocess.check_call(cmd)
-    print("signed %s" % (target,))
+    print(f"signed {target}")
     tmp_target.remove()
 
 
 def write_log_task(filename='Changelog'):
     st = subprocess.Popen(
-            ['git', 'log',  '%s..%s' % (LOG_START, LOG_END)],
-            stdout=subprocess.PIPE)
+        ['git', 'log', f'{LOG_START}..{LOG_END}'], stdout=subprocess.PIPE
+    )
 
     out = st.communicate()[0].decode()
-    a = open(filename, 'w')
-    a.writelines(out)
-    a.close()
+    with open(filename, 'w') as a:
+        a.writelines(out)
 
 @task
 @cmdopts([('gpg_key=', 'g', 'GPG key to use for signing')])

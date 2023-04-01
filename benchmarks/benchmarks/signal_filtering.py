@@ -63,10 +63,9 @@ class ParallelSosfilt(Benchmark):
 
     def time_sosfilt(self, n_samples, threads):
         pool = ThreadPoolExecutor(max_workers=threads)
-        futures = []
-        for i in range(threads):
-            futures.append(pool.submit(sosfilt, self.filt, self.chunks[i]))
-
+        futures = [
+            pool.submit(sosfilt, self.filt, self.chunks[i]) for i in range(threads)
+        ]
         wait(futures)
 
 

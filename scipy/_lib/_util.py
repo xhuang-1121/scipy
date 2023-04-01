@@ -42,9 +42,8 @@ def _lazywhere(cond, arrays, f, fillvalue=None, f2=None):
             raise ValueError("One of (fillvalue, f2) must be given.")
         else:
             fillvalue = np.nan
-    else:
-        if f2 is not None:
-            raise ValueError("Only one of (fillvalue, f2) can be given.")
+    elif f2 is not None:
+        raise ValueError("Only one of (fillvalue, f2) can be given.")
 
     arrays = np.broadcast_arrays(*arrays)
     temp = tuple(np.extract(cond, arr) for arr in arrays)
@@ -162,9 +161,10 @@ class DeprecatedImport(object):
         return dir(self._mod)
 
     def __getattr__(self, name):
-        warnings.warn("Module %s is deprecated, use %s instead"
-                      % (self._old_name, self._new_name),
-                      DeprecationWarning)
+        warnings.warn(
+            f"Module {self._old_name} is deprecated, use {self._new_name} instead",
+            DeprecationWarning,
+        )
         return getattr(self._mod, name)
 
 
@@ -237,17 +237,14 @@ def _asarray_validated(a, check_finite=True,
                    'Perhaps one of the scipy.sparse.linalg functions '
                    'would work instead.')
             raise ValueError(msg)
-    if not mask_ok:
-        if np.ma.isMaskedArray(a):
-            raise ValueError('masked arrays are not supported')
+    if not mask_ok and np.ma.isMaskedArray(a):
+        raise ValueError('masked arrays are not supported')
     toarray = np.asarray_chkfinite if check_finite else np.asarray
     a = toarray(a)
-    if not objects_ok:
-        if a.dtype is np.dtype('O'):
-            raise ValueError('object arrays are not supported')
-    if as_inexact:
-        if not np.issubdtype(a.dtype, np.inexact):
-            a = toarray(a, dtype=np.float_)
+    if not objects_ok and a.dtype is np.dtype('O'):
+        raise ValueError('object arrays are not supported')
+    if as_inexact and not np.issubdtype(a.dtype, np.inexact):
+        a = toarray(a, dtype=np.float_)
     return a
 
 
@@ -347,23 +344,21 @@ class MapWrapper(object):
         if callable(pool):
             self.pool = pool
             self._mapfunc = self.pool
+        elif int(pool) == -1:
+            # use as many processors as possible
+            self.pool = Pool()
+            self._mapfunc = self.pool.map
+            self._own_pool = True
+        elif int(pool) == 1:
+            pass
+        elif int(pool) > 1:
+            # use the number of processors requested
+            self.pool = Pool(processes=int(pool))
+            self._mapfunc = self.pool.map
+            self._own_pool = True
         else:
-            # user supplies a number
-            if int(pool) == -1:
-                # use as many processors as possible
-                self.pool = Pool()
-                self._mapfunc = self.pool.map
-                self._own_pool = True
-            elif int(pool) == 1:
-                pass
-            elif int(pool) > 1:
-                # use the number of processors requested
-                self.pool = Pool(processes=int(pool))
-                self._mapfunc = self.pool.map
-                self._own_pool = True
-            else:
-                raise RuntimeError("Number of workers specified must be -1,"
-                                   " an int >= 1, or an object with a 'map' method")
+            raise RuntimeError("Number of workers specified must be -1,"
+                               " an int >= 1, or an object with a 'map' method")
 
     def __enter__(self):
         return self

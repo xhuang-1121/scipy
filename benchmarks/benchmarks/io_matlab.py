@@ -25,15 +25,16 @@ class MemUsage(Benchmark):
         return [list(self._get_sizes().keys()), [True, False]]
 
     def _get_sizes(self):
-        sizes = collections.OrderedDict([
-            ('1M', 1e6),
-            ('10M', 10e6),
-            ('100M', 100e6),
-            ('300M', 300e6),
-            # ('500M', 500e6),
-            # ('1000M', 1000e6),
-        ])
-        return sizes
+        return collections.OrderedDict(
+            [
+                ('1M', 1e6),
+                ('10M', 10e6),
+                ('100M', 100e6),
+                ('300M', 300e6),
+                # ('500M', 500e6),
+                # ('1000M', 1000e6),
+            ]
+        )
 
     def setup(self, size, compressed):
         set_mem_rlimit()
